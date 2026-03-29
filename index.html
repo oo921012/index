@@ -277,6 +277,9 @@
         <button class="btn-primary" id="loginBtn">登入</button>
       </div>
       <div id="authMsg" class="error"></div>
+      <div style="margin-top:12px;">
+        <button class="btn-secondary" onclick="resetLogin()">重置登入</button>
+      </div>
       <div class="notice">這版是密碼登入，登入成功後才會看到後台。</div>
     </div>
   </div>
@@ -663,18 +666,29 @@
 
     async function handleLogin() {
       authMsg.textContent = "";
+
       const email = document.getElementById("loginEmail").value.trim();
       const password = document.getElementById("loginPassword").value;
 
-      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabaseClient.auth.signInWithPassword({
+        email,
+        password
+      });
+
       if (error) {
         authMsg.textContent = error.message;
         return;
       }
+
+      authView.classList.add("hidden");
+      appView.classList.remove("hidden");
+      currentUserBox.textContent = `已登入：${data.user.email}`;
+
+      await loadAllData();
     }
 
     async function handleLogout() {
-      await supabaseClient.auth.signOut();
+      await supabaseClient.auth.signOut({ scope: 'local' });
     }
 
     async function syncAuthUI() {
@@ -810,6 +824,12 @@
       document.getElementById("saleTotalPreview").value = nt(qty * price);
     }
 
+    function resetLogin() {
+      localStorage.clear();
+      sessionStorage.clear();
+      location.reload();
+    }
+
     document.getElementById("loginBtn").addEventListener("click", handleLogin);
     document.getElementById("logoutBtn").addEventListener("click", handleLogout);
     document.getElementById("addInventoryBtn").addEventListener("click", addInventory);
@@ -823,8 +843,19 @@
       btn.addEventListener("click", () => switchPage(btn.dataset.page));
     });
 
-    supabaseClient.auth.onAuthStateChange(async () => {
-      await syncAuthUI();
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+      console.log("auth event:", event);
+
+      if (session?.user) {
+        authView.classList.add("hidden");
+        appView.classList.remove("hidden");
+        currentUserBox.textContent = `已登入：${session.user.email}`;
+        loadAllData();
+      } else {
+        appView.classList.add("hidden");
+        authView.classList.remove("hidden");
+        currentUserBox.textContent = "未登入";
+      }
     });
 
     syncAuthUI();
