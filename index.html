@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Inventory System</title>
+  <title>Inventory System Pro</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { box-sizing: border-box; }
     body {
       margin: 0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-      background: #f5f7fb;
+      background: #f3f6fb;
       color: #111827;
     }
     .hidden { display: none !important; }
@@ -28,7 +28,7 @@
     .auth-card {
       width: 100%;
       max-width: 420px;
-      background: rgba(255,255,255,0.95);
+      background: rgba(255,255,255,0.96);
       border: 1px solid #e5e7eb;
       border-radius: 24px;
       padding: 28px;
@@ -93,9 +93,7 @@
       word-break: break-word;
     }
 
-    .main {
-      padding: 24px;
-    }
+    .main { padding: 24px; }
     .topbar {
       display: flex;
       justify-content: space-between;
@@ -104,7 +102,7 @@
       margin-bottom: 20px;
     }
     .page-title {
-      font-size: 28px;
+      font-size: 30px;
       font-weight: 800;
       margin: 0;
     }
@@ -112,12 +110,9 @@
       color: #6b7280;
       font-size: 14px;
     }
-
-    .grid {
-      display: grid;
-      gap: 18px;
-    }
+    .grid { display: grid; gap: 18px; }
     .grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+    .grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
     .grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
 
     .card {
@@ -136,27 +131,23 @@
       font-size: 28px;
       font-weight: 800;
     }
-
+    .stat-sub {
+      color: #64748b;
+      font-size: 13px;
+      margin-top: 8px;
+    }
     .section-title {
       font-size: 20px;
       font-weight: 800;
       margin: 0 0 16px;
     }
-
-    .form-grid {
+    .form-grid { display: grid; gap: 12px; }
+    .row-2, .row-3 {
       display: grid;
       gap: 12px;
     }
-    .row-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-    .row-3 {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 12px;
-    }
+    .row-2 { grid-template-columns: 1fr 1fr; }
+    .row-3 { grid-template-columns: 1fr 1fr 1fr; }
 
     label {
       display: block;
@@ -183,31 +174,23 @@
       border-color: #3b82f6;
       box-shadow: 0 0 0 4px rgba(59,130,246,.12);
     }
-    button {
-      border: 0;
-      cursor: pointer;
-      font-weight: 700;
-    }
-    .btn-primary {
-      background: #111827;
-      color: #fff;
-    }
-    .btn-secondary {
-      background: #e5e7eb;
-      color: #111827;
-    }
-    .btn-danger {
-      background: #fee2e2;
-      color: #991b1b;
+    button { border: 0; cursor: pointer; font-weight: 700; }
+    .btn-primary { background: #111827; color: #fff; }
+    .btn-secondary { background: #e5e7eb; color: #111827; }
+    .btn-danger { background: #fee2e2; color: #991b1b; }
+    .btn-small {
+      width: auto;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      margin-right: 6px;
     }
 
-    .table-wrap {
-      overflow: auto;
-    }
+    .table-wrap { overflow: auto; }
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 760px;
+      min-width: 900px;
     }
     th, td {
       padding: 12px 10px;
@@ -222,35 +205,31 @@
       background: #f9fafb;
       position: sticky;
       top: 0;
+      z-index: 1;
     }
-
+    .pill {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #eef2ff;
+      color: #3730a3;
+      font-size: 12px;
+      font-weight: 700;
+    }
     .notice {
       margin-top: 12px;
       font-size: 13px;
       color: #6b7280;
     }
-    .error {
-      color: #b91c1c;
-      font-size: 14px;
-      margin-top: 10px;
-    }
-    .success {
-      color: #166534;
-      font-size: 14px;
-      margin-top: 10px;
-    }
+    .error { color: #b91c1c; font-size: 14px; margin-top: 10px; }
+    .success { color: #166534; font-size: 14px; margin-top: 10px; }
 
-    @media (max-width: 1100px) {
+    @media (max-width: 1200px) {
       .grid.cols-4 { grid-template-columns: repeat(2, 1fr); }
+      .grid.cols-3 { grid-template-columns: 1fr; }
       .grid.cols-2, .row-2, .row-3, .app { grid-template-columns: 1fr; }
-      .sidebar {
-        height: auto;
-        position: static;
-      }
-      .sidebar-bottom {
-        position: static;
-        margin-top: 20px;
-      }
+      .sidebar { height: auto; position: static; }
+      .sidebar-bottom { position: static; margin-top: 20px; }
     }
     @media (max-width: 700px) {
       .grid.cols-4 { grid-template-columns: 1fr; }
@@ -267,7 +246,7 @@
 
       <div>
         <label for="loginEmail">Email</label>
-        <input id="loginEmail" type="email" placeholder="oo921012@gmail.com" value="oo921012@gmail.com" />
+        <input id="loginEmail" type="email" placeholder="oo92101@gmail.com" value="oo92101@gmail.com" />
       </div>
       <div style="margin-top:12px;">
         <label for="loginPassword">Password</label>
@@ -286,10 +265,10 @@
 
   <div id="appView" class="app hidden">
     <aside class="sidebar">
-      <div class="brand">System</div>
+      <div class="brand">System Pro</div>
 
       <button class="nav-btn active" data-page="dashboard">Dashboard</button>
-      <button class="nav-btn" data-page="inventory">庫存管理</button>
+      <button class="nav-btn" data-page="inventory">多幣別進貨</button>
       <button class="nav-btn" data-page="sales">銷售紀錄</button>
       <button class="nav-btn" data-page="expenses">營運支出</button>
 
@@ -303,7 +282,7 @@
       <div class="topbar">
         <div>
           <h2 class="page-title" id="pageTitle">Dashboard</h2>
-          <div class="muted">Supabase Auth + Database</div>
+          <div class="muted">Supabase Auth + Database｜多幣別＋損益報表＋可編輯刪除</div>
         </div>
         <button class="btn-secondary" id="refreshBtn" style="max-width:160px;">重新整理資料</button>
       </div>
@@ -313,31 +292,42 @@
           <div class="card">
             <div class="stat-label">總營收</div>
             <div class="stat-value" id="statRevenue">NT$ 0</div>
+            <div class="stat-sub">全部銷售總額</div>
           </div>
           <div class="card">
             <div class="stat-label">商品成本</div>
             <div class="stat-value" id="statCost">NT$ 0</div>
+            <div class="stat-sub">已售商品成本</div>
           </div>
           <div class="card">
             <div class="stat-label">營運支出</div>
             <div class="stat-value" id="statExpense">NT$ 0</div>
+            <div class="stat-sub">全部支出</div>
           </div>
           <div class="card">
             <div class="stat-label">淨利</div>
             <div class="stat-value" id="statProfit">NT$ 0</div>
+            <div class="stat-sub">營收 - 成本 - 支出</div>
           </div>
         </div>
 
-        <div class="grid cols-2" style="margin-top:18px;">
+        <div class="grid cols-3" style="margin-top:18px;">
+          <div class="card">
+            <h3 class="section-title">庫存總覽</h3>
+            <div class="stat-label">現有商品種類</div>
+            <div class="stat-value" id="statSkuCount">0</div>
+            <div class="stat-sub" id="statInventoryValue">庫存價值：NT$ 0</div>
+          </div>
+
           <div class="card">
             <h3 class="section-title">最近銷售</h3>
             <div class="table-wrap">
               <table>
                 <thead>
                   <tr>
+                    <th>時間</th>
                     <th>商品</th>
                     <th>數量</th>
-                    <th>單價</th>
                     <th>總額</th>
                   </tr>
                 </thead>
@@ -352,6 +342,7 @@
               <table>
                 <thead>
                   <tr>
+                    <th>時間</th>
                     <th>類別</th>
                     <th>金額</th>
                     <th>備註</th>
@@ -367,8 +358,9 @@
       <section id="page-inventory" class="page hidden">
         <div class="grid cols-2">
           <div class="card">
-            <h3 class="section-title">新增庫存</h3>
+            <h3 class="section-title">新增 / 編輯進貨</h3>
             <div class="form-grid">
+              <input type="hidden" id="invEditId" />
               <div class="row-2">
                 <div>
                   <label>商品名稱</label>
@@ -379,17 +371,45 @@
                   <input id="invCategory" placeholder="例如：服飾" />
                 </div>
               </div>
-              <div class="row-2">
+              <div class="row-3">
                 <div>
                   <label>庫存數量</label>
                   <input id="invStock" type="number" min="1" placeholder="例如：20" />
                 </div>
                 <div>
-                  <label>平均成本（台幣）</label>
-                  <input id="invCost" type="number" min="0" step="0.01" placeholder="例如：180" />
+                  <label>幣別</label>
+                  <select id="invCurrency">
+                    <option value="TWD">台幣 TWD</option>
+                    <option value="JPY">日幣 JPY</option>
+                    <option value="KRW">韓元 KRW</option>
+                    <option value="THB">泰銖 THB</option>
+                    <option value="USD">美元 USD</option>
+                    <option value="CNY">人民幣 CNY</option>
+                  </select>
+                </div>
+                <div>
+                  <label>原始單價</label>
+                  <input id="invUnitCost" type="number" min="0" step="0.01" placeholder="例如：500" />
                 </div>
               </div>
-              <button class="btn-primary" id="addInventoryBtn">新增庫存</button>
+              <div class="row-3">
+                <div>
+                  <label>匯率（1單位外幣=幾台幣）</label>
+                  <input id="invExchangeRate" type="number" min="0" step="0.0001" value="1" />
+                </div>
+                <div>
+                  <label>平均成本（台幣）</label>
+                  <input id="invCost" type="number" min="0" step="0.01" placeholder="自動計算，可手動覆蓋" />
+                </div>
+                <div>
+                  <label>備註</label>
+                  <input id="invNote" placeholder="來源/款式/批次" />
+                </div>
+              </div>
+              <div class="row-2">
+                <button class="btn-primary" id="addInventoryBtn">儲存進貨</button>
+                <button class="btn-secondary" id="cancelInventoryEditBtn" type="button">取消編輯</button>
+              </div>
               <div id="inventoryMsg"></div>
             </div>
           </div>
@@ -403,8 +423,11 @@
                     <th>商品</th>
                     <th>分類</th>
                     <th>庫存</th>
-                    <th>成本</th>
+                    <th>幣別</th>
+                    <th>原始單價</th>
+                    <th>成本(台幣)</th>
                     <th>庫存價值</th>
+                    <th>操作</th>
                   </tr>
                 </thead>
                 <tbody id="inventoryBody"></tbody>
@@ -417,8 +440,11 @@
       <section id="page-sales" class="page hidden">
         <div class="grid cols-2">
           <div class="card">
-            <h3 class="section-title">新增銷售</h3>
+            <h3 class="section-title">新增 / 編輯銷售</h3>
             <div class="form-grid">
+              <input type="hidden" id="saleEditId" />
+              <input type="hidden" id="saleOriginalQty" />
+              <input type="hidden" id="saleOriginalInventoryId" />
               <div class="row-2">
                 <div>
                   <label>商品</label>
@@ -439,7 +465,10 @@
                   <input id="saleTotalPreview" readonly />
                 </div>
               </div>
-              <button class="btn-primary" id="addSaleBtn">新增銷售</button>
+              <div class="row-2">
+                <button class="btn-primary" id="addSaleBtn">儲存銷售</button>
+                <button class="btn-secondary" id="cancelSaleEditBtn" type="button">取消編輯</button>
+              </div>
               <div id="salesMsg"></div>
             </div>
           </div>
@@ -450,10 +479,14 @@
               <table>
                 <thead>
                   <tr>
+                    <th>時間</th>
                     <th>商品</th>
                     <th>數量</th>
                     <th>單價</th>
                     <th>總額</th>
+                    <th>成本</th>
+                    <th>毛利</th>
+                    <th>操作</th>
                   </tr>
                 </thead>
                 <tbody id="salesBody"></tbody>
@@ -466,8 +499,9 @@
       <section id="page-expenses" class="page hidden">
         <div class="grid cols-2">
           <div class="card">
-            <h3 class="section-title">新增支出</h3>
+            <h3 class="section-title">新增 / 編輯支出</h3>
             <div class="form-grid">
+              <input type="hidden" id="expEditId" />
               <div class="row-2">
                 <div>
                   <label>類別</label>
@@ -490,7 +524,10 @@
                 <label>備註</label>
                 <textarea id="expNote" placeholder="可填來源、航班、物流單號等"></textarea>
               </div>
-              <button class="btn-primary" id="addExpenseBtn">新增支出</button>
+              <div class="row-2">
+                <button class="btn-primary" id="addExpenseBtn">儲存支出</button>
+                <button class="btn-secondary" id="cancelExpenseEditBtn" type="button">取消編輯</button>
+              </div>
               <div id="expensesMsg"></div>
             </div>
           </div>
@@ -501,9 +538,11 @@
               <table>
                 <thead>
                   <tr>
+                    <th>時間</th>
                     <th>類別</th>
                     <th>金額</th>
                     <th>備註</th>
+                    <th>操作</th>
                   </tr>
                 </thead>
                 <tbody id="expensesBody"></tbody>
@@ -525,14 +564,27 @@
     const authMsg = document.getElementById("authMsg");
     const currentUserBox = document.getElementById("currentUserBox");
 
-    const state = {
-      inventory: [],
-      sales: [],
-      expenses: []
-    };
+    const state = { inventory: [], sales: [], expenses: [] };
 
     function nt(n) {
       return "NT$ " + Number(n || 0).toLocaleString("zh-TW", { maximumFractionDigits: 2 });
+    }
+
+    function formatTime(value) {
+      if (!value) return "-";
+      const d = new Date(value);
+      if (isNaN(d.getTime())) return value;
+      return d.toLocaleString("zh-TW", { hour12: false });
+    }
+
+    function numberValue(id) {
+      return Number(document.getElementById(id).value || 0);
+    }
+
+    function resetLogin() {
+      localStorage.clear();
+      sessionStorage.clear();
+      location.reload();
     }
 
     function setMsg(id, text, type = "error") {
@@ -556,30 +608,37 @@
       });
       const titles = {
         dashboard: "Dashboard",
-        inventory: "庫存管理",
+        inventory: "多幣別進貨",
         sales: "銷售紀錄",
         expenses: "營運支出"
       };
       document.getElementById("pageTitle").textContent = titles[page] || "Dashboard";
     }
 
+    function calculateInventoryTwd() {
+      return state.inventory.reduce((sum, row) => sum + (Number(row.stock || 0) * Number(row.cost_twd || 0)), 0);
+    }
+
     function renderDashboard() {
       const revenue = state.sales.reduce((sum, x) => sum + Number(x.total || 0), 0);
-      const cost = state.sales.reduce((sum, x) => sum + (Number(x.cost_twd || 0) * Number(x.qty || 0)), 0);
+      const cost = state.sales.reduce((sum, x) => sum + Number(x.cost_twd || 0), 0);
       const expense = state.expenses.reduce((sum, x) => sum + Number(x.amount || 0), 0);
       const profit = revenue - cost - expense;
+      const inventoryValue = calculateInventoryTwd();
 
       document.getElementById("statRevenue").textContent = nt(revenue);
       document.getElementById("statCost").textContent = nt(cost);
       document.getElementById("statExpense").textContent = nt(expense);
       document.getElementById("statProfit").textContent = nt(profit);
+      document.getElementById("statSkuCount").textContent = state.inventory.length;
+      document.getElementById("statInventoryValue").textContent = `庫存價值：${nt(inventoryValue)}`;
 
       document.getElementById("dashboardSalesBody").innerHTML =
         state.sales.slice(0, 8).map(row => `
           <tr>
+            <td>${formatTime(row.created_at)}</td>
             <td>${row.product_name ?? ""}</td>
             <td>${row.qty ?? 0}</td>
-            <td>${nt(row.price)}</td>
             <td>${nt(row.total)}</td>
           </tr>
         `).join("") || `<tr><td colspan="4">目前沒有資料</td></tr>`;
@@ -587,11 +646,12 @@
       document.getElementById("dashboardExpensesBody").innerHTML =
         state.expenses.slice(0, 8).map(row => `
           <tr>
+            <td>${formatTime(row.created_at)}</td>
             <td>${row.category ?? ""}</td>
             <td>${nt(row.amount)}</td>
             <td>${row.note ?? ""}</td>
           </tr>
-        `).join("") || `<tr><td colspan="3">目前沒有資料</td></tr>`;
+        `).join("") || `<tr><td colspan="4">目前沒有資料</td></tr>`;
     }
 
     function renderInventory() {
@@ -601,10 +661,16 @@
             <td>${row.name ?? ""}</td>
             <td>${row.category ?? ""}</td>
             <td>${row.stock ?? 0}</td>
+            <td><span class="pill">${row.currency ?? "TWD"}</span></td>
+            <td>${Number(row.unit_cost || 0).toLocaleString("zh-TW")}</td>
             <td>${nt(row.cost_twd)}</td>
-            <td>${nt((Number(row.stock || 0) * Number(row.cost_twd || 0)))}</td>
+            <td>${nt(Number(row.stock || 0) * Number(row.cost_twd || 0))}</td>
+            <td>
+              <button class="btn-secondary btn-small" onclick="editInventory('${row.id}')">編輯</button>
+              <button class="btn-danger btn-small" onclick="deleteInventory('${row.id}')">刪除</button>
+            </td>
           </tr>
-        `).join("") || `<tr><td colspan="5">目前沒有庫存</td></tr>`;
+        `).join("") || `<tr><td colspan="8">目前沒有庫存</td></tr>`;
 
       const saleProduct = document.getElementById("saleProduct");
       saleProduct.innerHTML = state.inventory
@@ -621,30 +687,42 @@
       document.getElementById("salesBody").innerHTML =
         state.sales.map(row => `
           <tr>
+            <td>${formatTime(row.created_at)}</td>
             <td>${row.product_name ?? ""}</td>
             <td>${row.qty ?? 0}</td>
             <td>${nt(row.price)}</td>
             <td>${nt(row.total)}</td>
+            <td>${nt(row.cost_twd)}</td>
+            <td>${nt(Number(row.total || 0) - Number(row.cost_twd || 0))}</td>
+            <td>
+              <button class="btn-secondary btn-small" onclick="editSale('${row.id}')">編輯</button>
+              <button class="btn-danger btn-small" onclick="deleteSale('${row.id}')">刪除</button>
+            </td>
           </tr>
-        `).join("") || `<tr><td colspan="4">目前沒有銷售資料</td></tr>`;
+        `).join("") || `<tr><td colspan="8">目前沒有銷售資料</td></tr>`;
     }
 
     function renderExpenses() {
       document.getElementById("expensesBody").innerHTML =
         state.expenses.map(row => `
           <tr>
+            <td>${formatTime(row.created_at)}</td>
             <td>${row.category ?? ""}</td>
             <td>${nt(row.amount)}</td>
             <td>${row.note ?? ""}</td>
+            <td>
+              <button class="btn-secondary btn-small" onclick="editExpense('${row.id}')">編輯</button>
+              <button class="btn-danger btn-small" onclick="deleteExpense('${row.id}')">刪除</button>
+            </td>
           </tr>
-        `).join("") || `<tr><td colspan="3">目前沒有支出資料</td></tr>`;
+        `).join("") || `<tr><td colspan="5">目前沒有支出資料</td></tr>`;
     }
 
     async function loadAllData() {
       clearMsgs();
 
       const [{ data: inventory, error: invErr }, { data: sales, error: salesErr }, { data: expenses, error: expErr }] = await Promise.all([
-        supabaseClient.from("inventory").select("*").order("name", { ascending: true }),
+        supabaseClient.from("inventory").select("*").order("created_at", { ascending: false }),
         supabaseClient.from("sales").select("*").order("created_at", { ascending: false }),
         supabaseClient.from("expenses").select("*").order("created_at", { ascending: false })
       ]);
@@ -666,15 +744,10 @@
 
     async function handleLogin() {
       authMsg.textContent = "";
-
       const email = document.getElementById("loginEmail").value.trim();
       const password = document.getElementById("loginPassword").value;
 
-      const { data, error } = await supabaseClient.auth.signInWithPassword({
-        email,
-        password
-      });
-
+      const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
       if (error) {
         authMsg.textContent = error.message;
         return;
@@ -683,7 +756,6 @@
       authView.classList.add("hidden");
       appView.classList.remove("hidden");
       currentUserBox.textContent = `已登入：${data.user.email}`;
-
       await loadAllData();
     }
 
@@ -699,6 +771,7 @@
         authView.classList.add("hidden");
         appView.classList.remove("hidden");
         currentUserBox.textContent = `已登入：${session.user.email}`;
+        authMsg.textContent = "";
         await loadAllData();
       } else {
         appView.classList.add("hidden");
@@ -707,40 +780,126 @@
       }
     }
 
+    function computeCostTwd() {
+      const currency = document.getElementById("invCurrency").value;
+      const unitCost = Number(document.getElementById("invUnitCost").value || 0);
+      let rate = Number(document.getElementById("invExchangeRate").value || 0);
+
+      if (currency === "TWD") rate = 1;
+      const twd = unitCost * rate;
+      if (unitCost > 0 && rate > 0) {
+        document.getElementById("invCost").value = twd.toFixed(2);
+      }
+    }
+
+    function resetInventoryForm() {
+      document.getElementById("invEditId").value = "";
+      document.getElementById("invName").value = "";
+      document.getElementById("invCategory").value = "";
+      document.getElementById("invStock").value = "";
+      document.getElementById("invCurrency").value = "TWD";
+      document.getElementById("invUnitCost").value = "";
+      document.getElementById("invExchangeRate").value = "1";
+      document.getElementById("invCost").value = "";
+      document.getElementById("invNote").value = "";
+      setMsg("inventoryMsg", "");
+    }
+
     async function addInventory() {
       setMsg("inventoryMsg", "");
+      const editId = document.getElementById("invEditId").value;
       const name = document.getElementById("invName").value.trim();
       const category = document.getElementById("invCategory").value.trim();
       const stock = Number(document.getElementById("invStock").value);
-      const cost_twd = Number(document.getElementById("invCost").value);
+      const currency = document.getElementById("invCurrency").value;
+      const unit_cost = Number(document.getElementById("invUnitCost").value);
+      const exchange_rate = currency === "TWD" ? 1 : Number(document.getElementById("invExchangeRate").value);
+      const manualCost = Number(document.getElementById("invCost").value);
+      const note = document.getElementById("invNote").value.trim();
+      const cost_twd = manualCost > 0 ? manualCost : unit_cost * exchange_rate;
 
-      if (!name || !category || stock <= 0 || cost_twd < 0) {
-        setMsg("inventoryMsg", "請完整填寫庫存資料");
+      if (!name || !category || stock <= 0 || unit_cost < 0 || cost_twd < 0) {
+        setMsg("inventoryMsg", "請完整填寫進貨資料");
         return;
       }
 
-      const { error } = await supabaseClient.from("inventory").insert({
-        name, category, stock, cost_twd
-      });
+      if (currency !== "TWD" && exchange_rate <= 0) {
+        setMsg("inventoryMsg", "外幣請填寫正確匯率");
+        return;
+      }
 
+      const payload = { name, category, stock, currency, unit_cost, exchange_rate, cost_twd, note };
+
+      let result;
+      if (editId) {
+        result = await supabaseClient.from("inventory").update(payload).eq("id", editId).select();
+      } else {
+        result = await supabaseClient.from("inventory").insert([payload]).select();
+      }
+
+      if (result.error) {
+        setMsg("inventoryMsg", result.error.message);
+        return;
+      }
+
+      setMsg("inventoryMsg", editId ? "更新成功" : "新增成功", "success");
+      resetInventoryForm();
+      await loadAllData();
+    }
+
+    async function editInventory(id) {
+      const item = state.inventory.find(x => x.id === id);
+      if (!item) return;
+      document.getElementById("invEditId").value = item.id;
+      document.getElementById("invName").value = item.name || "";
+      document.getElementById("invCategory").value = item.category || "";
+      document.getElementById("invStock").value = item.stock || "";
+      document.getElementById("invCurrency").value = item.currency || "TWD";
+      document.getElementById("invUnitCost").value = item.unit_cost || "";
+      document.getElementById("invExchangeRate").value = item.exchange_rate || 1;
+      document.getElementById("invCost").value = item.cost_twd || "";
+      document.getElementById("invNote").value = item.note || "";
+      switchPage("inventory");
+    }
+
+    async function deleteInventory(id) {
+      const item = state.inventory.find(x => x.id === id);
+      if (!item) return;
+      if (!confirm(`確定刪除商品「${item.name}」嗎？`)) return;
+
+      const relatedSales = state.sales.filter(x => x.inventory_id === id);
+      if (relatedSales.length > 0) {
+        setMsg("inventoryMsg", "這個商品已有銷售紀錄，不能直接刪除", "error");
+        switchPage("inventory");
+        return;
+      }
+
+      const { error } = await supabaseClient.from("inventory").delete().eq("id", id);
       if (error) {
         setMsg("inventoryMsg", error.message);
         return;
       }
-
-      setMsg("inventoryMsg", "新增成功", "success");
-      document.getElementById("invName").value = "";
-      document.getElementById("invCategory").value = "";
-      document.getElementById("invStock").value = "";
-      document.getElementById("invCost").value = "";
       await loadAllData();
+    }
+
+    function resetSaleForm() {
+      document.getElementById("saleEditId").value = "";
+      document.getElementById("saleOriginalQty").value = "";
+      document.getElementById("saleOriginalInventoryId").value = "";
+      document.getElementById("saleQty").value = "";
+      document.getElementById("salePrice").value = "";
+      updateSalePreview();
+      setMsg("salesMsg", "");
     }
 
     async function addSale() {
       setMsg("salesMsg", "");
+      const editId = document.getElementById("saleEditId").value;
       const productId = document.getElementById("saleProduct").value;
       const qty = Number(document.getElementById("saleQty").value);
       const price = Number(document.getElementById("salePrice").value);
+      const originalQty = Number(document.getElementById("saleOriginalQty").value || 0);
+      const originalInventoryId = document.getElementById("saleOriginalInventoryId").value;
 
       if (!productId || qty <= 0 || price < 0) {
         setMsg("salesMsg", "請完整填寫銷售資料");
@@ -752,48 +911,123 @@
         setMsg("salesMsg", "找不到商品");
         return;
       }
-      if (Number(item.stock) < qty) {
-        setMsg("salesMsg", `庫存不足，目前剩餘 ${item.stock}`);
+
+      let availableStock = Number(item.stock);
+      if (editId && originalInventoryId === productId) {
+        availableStock += originalQty;
+      }
+
+      if (availableStock < qty) {
+        setMsg("salesMsg", `庫存不足，目前可用 ${availableStock}`);
         return;
       }
 
-      const newStock = Number(item.stock) - qty;
       const total = qty * price;
+      const cost_twd = Number(item.cost_twd || 0) * qty;
 
-      const { error: updateErr } = await supabaseClient
-        .from("inventory")
-        .update({ stock: newStock })
-        .eq("id", item.id);
+      if (editId) {
+        // restore original stock if same/other item
+        if (originalInventoryId) {
+          const oldItem = state.inventory.find(x => x.id === originalInventoryId);
+          if (oldItem) {
+            await supabaseClient.from("inventory").update({
+              stock: Number(oldItem.stock) + originalQty
+            }).eq("id", oldItem.id);
+          }
+        }
 
-      if (updateErr) {
-        setMsg("salesMsg", updateErr.message);
-        return;
-      }
+        const newItem = state.inventory.find(x => x.id === productId);
+        await supabaseClient.from("inventory").update({
+          stock: Number(newItem.stock) - qty
+        }).eq("id", productId);
 
-      const { error: insertErr } = await supabaseClient
-        .from("sales")
-        .insert({
+        const { error } = await supabaseClient.from("sales").update({
+          inventory_id: productId,
           product_name: item.name,
-          qty,
-          price,
-          total,
-          cost_twd: Number(item.cost_twd || 0)
-        });
+          qty, price, total, cost_twd
+        }).eq("id", editId).select();
 
-      if (insertErr) {
-        setMsg("salesMsg", insertErr.message);
-        return;
+        if (error) {
+          setMsg("salesMsg", error.message);
+          return;
+        }
+
+        setMsg("salesMsg", "更新成功", "success");
+      } else {
+        const { error: updateErr } = await supabaseClient
+          .from("inventory")
+          .update({ stock: Number(item.stock) - qty })
+          .eq("id", item.id);
+
+        if (updateErr) {
+          setMsg("salesMsg", updateErr.message);
+          return;
+        }
+
+        const { error: insertErr } = await supabaseClient
+          .from("sales")
+          .insert([{
+            inventory_id: item.id,
+            product_name: item.name,
+            qty, price, total, cost_twd
+          }]).select();
+
+        if (insertErr) {
+          setMsg("salesMsg", insertErr.message);
+          return;
+        }
+
+        setMsg("salesMsg", "銷售新增成功", "success");
       }
 
-      setMsg("salesMsg", "銷售新增成功", "success");
-      document.getElementById("saleQty").value = "";
-      document.getElementById("salePrice").value = "";
-      updateSalePreview();
+      resetSaleForm();
       await loadAllData();
+    }
+
+    async function editSale(id) {
+      const row = state.sales.find(x => x.id === id);
+      if (!row) return;
+      document.getElementById("saleEditId").value = row.id;
+      document.getElementById("saleOriginalQty").value = row.qty || 0;
+      document.getElementById("saleOriginalInventoryId").value = row.inventory_id || "";
+      document.getElementById("saleProduct").value = row.inventory_id || "";
+      document.getElementById("saleQty").value = row.qty || "";
+      document.getElementById("salePrice").value = row.price || "";
+      updateSalePreview();
+      switchPage("sales");
+    }
+
+    async function deleteSale(id) {
+      const row = state.sales.find(x => x.id === id);
+      if (!row) return;
+      if (!confirm(`確定刪除銷售「${row.product_name}」嗎？`)) return;
+
+      const item = state.inventory.find(x => x.id === row.inventory_id);
+      if (item) {
+        await supabaseClient.from("inventory").update({
+          stock: Number(item.stock) + Number(row.qty || 0)
+        }).eq("id", item.id);
+      }
+
+      const { error } = await supabaseClient.from("sales").delete().eq("id", id);
+      if (error) {
+        setMsg("salesMsg", error.message);
+        return;
+      }
+      await loadAllData();
+    }
+
+    function resetExpenseForm() {
+      document.getElementById("expEditId").value = "";
+      document.getElementById("expCategory").value = "機票";
+      document.getElementById("expAmount").value = "";
+      document.getElementById("expNote").value = "";
+      setMsg("expensesMsg", "");
     }
 
     async function addExpense() {
       setMsg("expensesMsg", "");
+      const editId = document.getElementById("expEditId").value;
       const category = document.getElementById("expCategory").value;
       const amount = Number(document.getElementById("expAmount").value);
       const note = document.getElementById("expNote").value.trim();
@@ -803,18 +1037,42 @@
         return;
       }
 
-      const { error } = await supabaseClient
-        .from("expenses")
-        .insert({ category, amount, note });
+      let result;
+      if (editId) {
+        result = await supabaseClient.from("expenses").update({ category, amount, note }).eq("id", editId).select();
+      } else {
+        result = await supabaseClient.from("expenses").insert([{ category, amount, note }]).select();
+      }
 
+      if (result.error) {
+        setMsg("expensesMsg", result.error.message);
+        return;
+      }
+
+      setMsg("expensesMsg", editId ? "更新成功" : "支出新增成功", "success");
+      resetExpenseForm();
+      await loadAllData();
+    }
+
+    async function editExpense(id) {
+      const row = state.expenses.find(x => x.id === id);
+      if (!row) return;
+      document.getElementById("expEditId").value = row.id;
+      document.getElementById("expCategory").value = row.category || "機票";
+      document.getElementById("expAmount").value = row.amount || "";
+      document.getElementById("expNote").value = row.note || "";
+      switchPage("expenses");
+    }
+
+    async function deleteExpense(id) {
+      const row = state.expenses.find(x => x.id === id);
+      if (!row) return;
+      if (!confirm(`確定刪除支出「${row.category}」嗎？`)) return;
+      const { error } = await supabaseClient.from("expenses").delete().eq("id", id);
       if (error) {
         setMsg("expensesMsg", error.message);
         return;
       }
-
-      setMsg("expensesMsg", "支出新增成功", "success");
-      document.getElementById("expAmount").value = "";
-      document.getElementById("expNote").value = "";
       await loadAllData();
     }
 
@@ -822,12 +1080,6 @@
       const qty = Number(document.getElementById("saleQty").value || 0);
       const price = Number(document.getElementById("salePrice").value || 0);
       document.getElementById("saleTotalPreview").value = nt(qty * price);
-    }
-
-    function resetLogin() {
-      localStorage.clear();
-      sessionStorage.clear();
-      location.reload();
     }
 
     document.getElementById("loginBtn").addEventListener("click", handleLogin);
@@ -838,6 +1090,12 @@
     document.getElementById("refreshBtn").addEventListener("click", loadAllData);
     document.getElementById("saleQty").addEventListener("input", updateSalePreview);
     document.getElementById("salePrice").addEventListener("input", updateSalePreview);
+    document.getElementById("invCurrency").addEventListener("change", computeCostTwd);
+    document.getElementById("invUnitCost").addEventListener("input", computeCostTwd);
+    document.getElementById("invExchangeRate").addEventListener("input", computeCostTwd);
+    document.getElementById("cancelInventoryEditBtn").addEventListener("click", resetInventoryForm);
+    document.getElementById("cancelSaleEditBtn").addEventListener("click", resetSaleForm);
+    document.getElementById("cancelExpenseEditBtn").addEventListener("click", resetExpenseForm);
 
     document.querySelectorAll(".nav-btn").forEach(btn => {
       btn.addEventListener("click", () => switchPage(btn.dataset.page));
@@ -850,6 +1108,7 @@
         authView.classList.add("hidden");
         appView.classList.remove("hidden");
         currentUserBox.textContent = `已登入：${session.user.email}`;
+        authMsg.textContent = "";
         loadAllData();
       } else {
         appView.classList.add("hidden");
@@ -859,6 +1118,14 @@
     });
 
     syncAuthUI();
+
+    window.editInventory = editInventory;
+    window.deleteInventory = deleteInventory;
+    window.editSale = editSale;
+    window.deleteSale = deleteSale;
+    window.editExpense = editExpense;
+    window.deleteExpense = deleteExpense;
+    window.resetLogin = resetLogin;
   </script>
 </body>
 </html>
