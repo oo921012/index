@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WBY Inventory System</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      background: #f5f7fb;
+      color: #111827;
+    }
+    .hidden { display: none !important; }
+
+    .auth-wrap {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background:
+        radial-gradient(circle at top left, #dbeafe 0, transparent 30%),
+        radial-gradient(circle at bottom right, #e9d5ff 0, transparent 30%),
+        #f8fafc;
+    }
+    .auth-card {
+      width: 100%;
+      max-width: 420px;
+      background: rgba(255,255,255,0.95);
+      border: 1px solid #e5e7eb;
+      border-radius: 24px;
+      padding: 28px;
+      box-shadow: 0 18px 50px rgba(17,24,39,0.10);
+    }
+    .auth-title {
+      font-size: 28px;
+      font-weight: 800;
+      margin: 0 0 8px;
+    }
+    .auth-sub {
+      color: #6b7280;
+      margin: 0 0 22px;
+      font-size: 14px;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      min-height: 100vh;
+    }
+    .sidebar {
+      background: #0f172a;
+      color: #fff;
+      padding: 24px 18px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
+    .brand {
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 28px;
+      letter-spacing: .3px;
+    }
+    .nav-btn {
+      width: 100%;
+      text-align: left;
+      border: 0;
+      background: transparent;
+      color: #cbd5e1;
+      padding: 14px 14px;
+      border-radius: 14px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      font-size: 15px;
+    }
+    .nav-btn:hover, .nav-btn.active {
+      background: rgba(255,255,255,0.08);
+      color: #fff;
+    }
+    .sidebar-bottom {
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      bottom: 18px;
+    }
+    .user-box {
+      font-size: 13px;
+      color: #cbd5e1;
+      margin-bottom: 12px;
+      word-break: break-word;
+    }
+
+    .main {
+      padding: 24px;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .page-title {
+      font-size: 28px;
+      font-weight: 800;
+      margin: 0;
+    }
+    .muted {
+      color: #6b7280;
+      font-size: 14px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+    }
+    .grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+    .grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+
+    .card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 22px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(17,24,39,0.05);
+    }
+    .stat-label {
+      color: #6b7280;
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+    .stat-value {
+      font-size: 28px;
+      font-weight: 800;
+    }
+
+    .section-title {
+      font-size: 20px;
+      font-weight: 800;
+      margin: 0 0 16px;
+    }
+
+    .form-grid {
+      display: grid;
+      gap: 12px;
+    }
+    .row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .row-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      color: #4b5563;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    input, select, textarea, button {
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid #d1d5db;
+      padding: 12px 14px;
+      font-size: 15px;
+      background: #fff;
+    }
+    textarea {
+      min-height: 90px;
+      resize: vertical;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 4px rgba(59,130,246,.12);
+    }
+    button {
+      border: 0;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .btn-primary {
+      background: #111827;
+      color: #fff;
+    }
+    .btn-secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+    .btn-danger {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .table-wrap {
+      overflow: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+    }
+    th, td {
+      padding: 12px 10px;
+      border-bottom: 1px solid #e5e7eb;
+      text-align: left;
+      font-size: 14px;
+      vertical-align: top;
+    }
+    th {
+      color: #6b7280;
+      font-weight: 700;
+      background: #f9fafb;
+      position: sticky;
+      top: 0;
+    }
+
+    .notice {
+      margin-top: 12px;
+      font-size: 13px;
+      color: #6b7280;
+    }
+    .error {
+      color: #b91c1c;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+    .success {
+      color: #166534;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+
+    @media (max-width: 1100px) {
+      .grid.cols-4 { grid-template-columns: repeat(2, 1fr); }
+      .grid.cols-2, .row-2, .row-3, .app { grid-template-columns: 1fr; }
+      .sidebar {
+        height: auto;
+        position: static;
+      }
+      .sidebar-bottom {
+        position: static;
+        margin-top: 20px;
+      }
+    }
+    @media (max-width: 700px) {
+      .grid.cols-4 { grid-template-columns: 1fr; }
+      .main { padding: 16px; }
+      .auth-card { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="authView" class="auth-wrap">
+    <div class="auth-card">
+      <h1 class="auth-title">陳芷牛後台登入</h1>
+      <p class="auth-sub">使用你在 Supabase 建立的管理員帳號登入。</p>
+
+      <div>
+        <label for="loginEmail">Email</label>
+        <input id="loginEmail" type="email" placeholder="oo921012@gmail.com" value="oo921012@gmail.com" />
+      </div>
+      <div style="margin-top:12px;">
+        <label for="loginPassword">Password</label>
+        <input id="loginPassword" type="password" placeholder="輸入密碼" />
+      </div>
+      <div style="margin-top:16px;">
+        <button class="btn-primary" id="loginBtn">登入</button>
+      </div>
+      <div id="authMsg" class="error"></div>
+      <div class="notice">這版是密碼登入，登入成功後才會看到後台。</div>
+    </div>
+  </div>
+
+  <div id="appView" class="app hidden">
+    <aside class="sidebar">
+      <div class="brand">WBY System</div>
+
+      <button class="nav-btn active" data-page="dashboard">Dashboard</button>
+      <button class="nav-btn" data-page="inventory">庫存管理</button>
+      <button class="nav-btn" data-page="sales">銷售紀錄</button>
+      <button class="nav-btn" data-page="expenses">營運支出</button>
+
+      <div class="sidebar-bottom">
+        <div class="user-box" id="currentUserBox">未登入</div>
+        <button class="btn-secondary" id="logoutBtn">登出</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h2 class="page-title" id="pageTitle">Dashboard</h2>
+          <div class="muted">Supabase Auth + Database</div>
+        </div>
+        <button class="btn-secondary" id="refreshBtn" style="max-width:160px;">重新整理資料</button>
+      </div>
+
+      <section id="page-dashboard" class="page">
+        <div class="grid cols-4">
+          <div class="card">
+            <div class="stat-label">總營收</div>
+            <div class="stat-value" id="statRevenue">NT$ 0</div>
+          </div>
+          <div class="card">
+            <div class="stat-label">商品成本</div>
+            <div class="stat-value" id="statCost">NT$ 0</div>
+          </div>
+          <div class="card">
+            <div class="stat-label">營運支出</div>
+            <div class="stat-value" id="statExpense">NT$ 0</div>
+          </div>
+          <div class="card">
+            <div class="stat-label">淨利</div>
+            <div class="stat-value" id="statProfit">NT$ 0</div>
+          </div>
+        </div>
+
+        <div class="grid cols-2" style="margin-top:18px;">
+          <div class="card">
+            <h3 class="section-title">最近銷售</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>商品</th>
+                    <th>數量</th>
+                    <th>單價</th>
+                    <th>總額</th>
+                  </tr>
+                </thead>
+                <tbody id="dashboardSalesBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3 class="section-title">最近支出</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>類別</th>
+                    <th>金額</th>
+                    <th>備註</th>
+                  </tr>
+                </thead>
+                <tbody id="dashboardExpensesBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="page-inventory" class="page hidden">
+        <div class="grid cols-2">
+          <div class="card">
+            <h3 class="section-title">新增庫存</h3>
+            <div class="form-grid">
+              <div class="row-2">
+                <div>
+                  <label>商品名稱</label>
+                  <input id="invName" placeholder="例如：襪子" />
+                </div>
+                <div>
+                  <label>分類</label>
+                  <input id="invCategory" placeholder="例如：服飾" />
+                </div>
+              </div>
+              <div class="row-2">
+                <div>
+                  <label>庫存數量</label>
+                  <input id="invStock" type="number" min="1" placeholder="例如：20" />
+                </div>
+                <div>
+                  <label>平均成本（台幣）</label>
+                  <input id="invCost" type="number" min="0" step="0.01" placeholder="例如：180" />
+                </div>
+              </div>
+              <button class="btn-primary" id="addInventoryBtn">新增庫存</button>
+              <div id="inventoryMsg"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3 class="section-title">庫存清單</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>商品</th>
+                    <th>分類</th>
+                    <th>庫存</th>
+                    <th>成本</th>
+                    <th>庫存價值</th>
+                  </tr>
+                </thead>
+                <tbody id="inventoryBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="page-sales" class="page hidden">
+        <div class="grid cols-2">
+          <div class="card">
+            <h3 class="section-title">新增銷售</h3>
+            <div class="form-grid">
+              <div class="row-2">
+                <div>
+                  <label>商品</label>
+                  <select id="saleProduct"></select>
+                </div>
+                <div>
+                  <label>數量</label>
+                  <input id="saleQty" type="number" min="1" placeholder="例如：1" />
+                </div>
+              </div>
+              <div class="row-2">
+                <div>
+                  <label>售價單價（台幣）</label>
+                  <input id="salePrice" type="number" min="0" step="0.01" placeholder="例如：590" />
+                </div>
+                <div>
+                  <label>總額預覽</label>
+                  <input id="saleTotalPreview" readonly />
+                </div>
+              </div>
+              <button class="btn-primary" id="addSaleBtn">新增銷售</button>
+              <div id="salesMsg"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3 class="section-title">銷售紀錄</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>商品</th>
+                    <th>數量</th>
+                    <th>單價</th>
+                    <th>總額</th>
+                  </tr>
+                </thead>
+                <tbody id="salesBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="page-expenses" class="page hidden">
+        <div class="grid cols-2">
+          <div class="card">
+            <h3 class="section-title">新增支出</h3>
+            <div class="form-grid">
+              <div class="row-2">
+                <div>
+                  <label>類別</label>
+                  <select id="expCategory">
+                    <option value="機票">機票</option>
+                    <option value="住宿">住宿</option>
+                    <option value="國際運費">國際運費</option>
+                    <option value="台灣物流">台灣物流</option>
+                    <option value="包材">包材</option>
+                    <option value="手續費">手續費</option>
+                    <option value="其他">其他</option>
+                  </select>
+                </div>
+                <div>
+                  <label>金額</label>
+                  <input id="expAmount" type="number" min="0" step="0.01" placeholder="例如：1200" />
+                </div>
+              </div>
+              <div>
+                <label>備註</label>
+                <textarea id="expNote" placeholder="可填來源、航班、物流單號等"></textarea>
+              </div>
+              <button class="btn-primary" id="addExpenseBtn">新增支出</button>
+              <div id="expensesMsg"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3 class="section-title">支出紀錄</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>類別</th>
+                    <th>金額</th>
+                    <th>備註</th>
+                  </tr>
+                </thead>
+                <tbody id="expensesBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const SUPABASE_URL = "https://kamzjheicwjycifknrgo.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_KKkxJ1gTuyNe2_OvClbyiQ_kJ8-d0vh";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const authView = document.getElementById("authView");
+    const appView = document.getElementById("appView");
+    const authMsg = document.getElementById("authMsg");
+    const currentUserBox = document.getElementById("currentUserBox");
+
+    const state = {
+      inventory: [],
+      sales: [],
+      expenses: []
+    };
+
+    function nt(n) {
+      return "NT$ " + Number(n || 0).toLocaleString("zh-TW", { maximumFractionDigits: 2 });
+    }
+
+    function setMsg(id, text, type = "error") {
+      const el = document.getElementById(id);
+      el.className = type;
+      el.textContent = text || "";
+    }
+
+    function clearMsgs() {
+      ["inventoryMsg", "salesMsg", "expensesMsg", "authMsg"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = "";
+      });
+    }
+
+    function switchPage(page) {
+      document.querySelectorAll(".page").forEach(p => p.classList.add("hidden"));
+      document.getElementById(`page-${page}`).classList.remove("hidden");
+      document.querySelectorAll(".nav-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.page === page);
+      });
+      const titles = {
+        dashboard: "Dashboard",
+        inventory: "庫存管理",
+        sales: "銷售紀錄",
+        expenses: "營運支出"
+      };
+      document.getElementById("pageTitle").textContent = titles[page] || "Dashboard";
+    }
+
+    function renderDashboard() {
+      const revenue = state.sales.reduce((sum, x) => sum + Number(x.total || 0), 0);
+      const cost = state.sales.reduce((sum, x) => sum + (Number(x.cost_twd || 0) * Number(x.qty || 0)), 0);
+      const expense = state.expenses.reduce((sum, x) => sum + Number(x.amount || 0), 0);
+      const profit = revenue - cost - expense;
+
+      document.getElementById("statRevenue").textContent = nt(revenue);
+      document.getElementById("statCost").textContent = nt(cost);
+      document.getElementById("statExpense").textContent = nt(expense);
+      document.getElementById("statProfit").textContent = nt(profit);
+
+      document.getElementById("dashboardSalesBody").innerHTML =
+        state.sales.slice(0, 8).map(row => `
+          <tr>
+            <td>${row.product_name ?? ""}</td>
+            <td>${row.qty ?? 0}</td>
+            <td>${nt(row.price)}</td>
+            <td>${nt(row.total)}</td>
+          </tr>
+        `).join("") || `<tr><td colspan="4">目前沒有資料</td></tr>`;
+
+      document.getElementById("dashboardExpensesBody").innerHTML =
+        state.expenses.slice(0, 8).map(row => `
+          <tr>
+            <td>${row.category ?? ""}</td>
+            <td>${nt(row.amount)}</td>
+            <td>${row.note ?? ""}</td>
+          </tr>
+        `).join("") || `<tr><td colspan="3">目前沒有資料</td></tr>`;
+    }
+
+    function renderInventory() {
+      document.getElementById("inventoryBody").innerHTML =
+        state.inventory.map(row => `
+          <tr>
+            <td>${row.name ?? ""}</td>
+            <td>${row.category ?? ""}</td>
+            <td>${row.stock ?? 0}</td>
+            <td>${nt(row.cost_twd)}</td>
+            <td>${nt((Number(row.stock || 0) * Number(row.cost_twd || 0)))}</td>
+          </tr>
+        `).join("") || `<tr><td colspan="5">目前沒有庫存</td></tr>`;
+
+      const saleProduct = document.getElementById("saleProduct");
+      saleProduct.innerHTML = state.inventory
+        .filter(x => Number(x.stock) > 0)
+        .map(row => `<option value="${row.id}">${row.name}（庫存：${row.stock}）</option>`)
+        .join("");
+
+      if (!saleProduct.innerHTML) {
+        saleProduct.innerHTML = `<option value="">目前沒有可售商品</option>`;
+      }
+    }
+
+    function renderSales() {
+      document.getElementById("salesBody").innerHTML =
+        state.sales.map(row => `
+          <tr>
+            <td>${row.product_name ?? ""}</td>
+            <td>${row.qty ?? 0}</td>
+            <td>${nt(row.price)}</td>
+            <td>${nt(row.total)}</td>
+          </tr>
+        `).join("") || `<tr><td colspan="4">目前沒有銷售資料</td></tr>`;
+    }
+
+    function renderExpenses() {
+      document.getElementById("expensesBody").innerHTML =
+        state.expenses.map(row => `
+          <tr>
+            <td>${row.category ?? ""}</td>
+            <td>${nt(row.amount)}</td>
+            <td>${row.note ?? ""}</td>
+          </tr>
+        `).join("") || `<tr><td colspan="3">目前沒有支出資料</td></tr>`;
+    }
+
+    async function loadAllData() {
+      clearMsgs();
+
+      const [{ data: inventory, error: invErr }, { data: sales, error: salesErr }, { data: expenses, error: expErr }] = await Promise.all([
+        supabaseClient.from("inventory").select("*").order("name", { ascending: true }),
+        supabaseClient.from("sales").select("*").order("created_at", { ascending: false }),
+        supabaseClient.from("expenses").select("*").order("created_at", { ascending: false })
+      ]);
+
+      if (invErr) setMsg("inventoryMsg", invErr.message, "error");
+      if (salesErr) setMsg("salesMsg", salesErr.message, "error");
+      if (expErr) setMsg("expensesMsg", expErr.message, "error");
+
+      state.inventory = inventory || [];
+      state.sales = sales || [];
+      state.expenses = expenses || [];
+
+      renderDashboard();
+      renderInventory();
+      renderSales();
+      renderExpenses();
+      updateSalePreview();
+    }
+
+    async function handleLogin() {
+      authMsg.textContent = "";
+      const email = document.getElementById("loginEmail").value.trim();
+      const password = document.getElementById("loginPassword").value;
+
+      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      if (error) {
+        authMsg.textContent = error.message;
+        return;
+      }
+    }
+
+    async function handleLogout() {
+      await supabaseClient.auth.signOut();
+    }
+
+    async function syncAuthUI() {
+      const { data } = await supabaseClient.auth.getSession();
+      const session = data.session;
+
+      if (session?.user) {
+        authView.classList.add("hidden");
+        appView.classList.remove("hidden");
+        currentUserBox.textContent = `已登入：${session.user.email}`;
+        await loadAllData();
+      } else {
+        appView.classList.add("hidden");
+        authView.classList.remove("hidden");
+        currentUserBox.textContent = "未登入";
+      }
+    }
+
+    async function addInventory() {
+      setMsg("inventoryMsg", "");
+      const name = document.getElementById("invName").value.trim();
+      const category = document.getElementById("invCategory").value.trim();
+      const stock = Number(document.getElementById("invStock").value);
+      const cost_twd = Number(document.getElementById("invCost").value);
+
+      if (!name || !category || stock <= 0 || cost_twd < 0) {
+        setMsg("inventoryMsg", "請完整填寫庫存資料");
+        return;
+      }
+
+      const { error } = await supabaseClient.from("inventory").insert({
+        name, category, stock, cost_twd
+      });
+
+      if (error) {
+        setMsg("inventoryMsg", error.message);
+        return;
+      }
+
+      setMsg("inventoryMsg", "新增成功", "success");
+      document.getElementById("invName").value = "";
+      document.getElementById("invCategory").value = "";
+      document.getElementById("invStock").value = "";
+      document.getElementById("invCost").value = "";
+      await loadAllData();
+    }
+
+    async function addSale() {
+      setMsg("salesMsg", "");
+      const productId = document.getElementById("saleProduct").value;
+      const qty = Number(document.getElementById("saleQty").value);
+      const price = Number(document.getElementById("salePrice").value);
+
+      if (!productId || qty <= 0 || price < 0) {
+        setMsg("salesMsg", "請完整填寫銷售資料");
+        return;
+      }
+
+      const item = state.inventory.find(x => x.id === productId);
+      if (!item) {
+        setMsg("salesMsg", "找不到商品");
+        return;
+      }
+      if (Number(item.stock) < qty) {
+        setMsg("salesMsg", `庫存不足，目前剩餘 ${item.stock}`);
+        return;
+      }
+
+      const newStock = Number(item.stock) - qty;
+      const total = qty * price;
+
+      const { error: updateErr } = await supabaseClient
+        .from("inventory")
+        .update({ stock: newStock })
+        .eq("id", item.id);
+
+      if (updateErr) {
+        setMsg("salesMsg", updateErr.message);
+        return;
+      }
+
+      const { error: insertErr } = await supabaseClient
+        .from("sales")
+        .insert({
+          product_name: item.name,
+          qty,
+          price,
+          total,
+          cost_twd: Number(item.cost_twd || 0)
+        });
+
+      if (insertErr) {
+        setMsg("salesMsg", insertErr.message);
+        return;
+      }
+
+      setMsg("salesMsg", "銷售新增成功", "success");
+      document.getElementById("saleQty").value = "";
+      document.getElementById("salePrice").value = "";
+      updateSalePreview();
+      await loadAllData();
+    }
+
+    async function addExpense() {
+      setMsg("expensesMsg", "");
+      const category = document.getElementById("expCategory").value;
+      const amount = Number(document.getElementById("expAmount").value);
+      const note = document.getElementById("expNote").value.trim();
+
+      if (!category || amount < 0) {
+        setMsg("expensesMsg", "請完整填寫支出資料");
+        return;
+      }
+
+      const { error } = await supabaseClient
+        .from("expenses")
+        .insert({ category, amount, note });
+
+      if (error) {
+        setMsg("expensesMsg", error.message);
+        return;
+      }
+
+      setMsg("expensesMsg", "支出新增成功", "success");
+      document.getElementById("expAmount").value = "";
+      document.getElementById("expNote").value = "";
+      await loadAllData();
+    }
+
+    function updateSalePreview() {
+      const qty = Number(document.getElementById("saleQty").value || 0);
+      const price = Number(document.getElementById("salePrice").value || 0);
+      document.getElementById("saleTotalPreview").value = nt(qty * price);
+    }
+
+    document.getElementById("loginBtn").addEventListener("click", handleLogin);
+    document.getElementById("logoutBtn").addEventListener("click", handleLogout);
+    document.getElementById("addInventoryBtn").addEventListener("click", addInventory);
+    document.getElementById("addSaleBtn").addEventListener("click", addSale);
+    document.getElementById("addExpenseBtn").addEventListener("click", addExpense);
+    document.getElementById("refreshBtn").addEventListener("click", loadAllData);
+    document.getElementById("saleQty").addEventListener("input", updateSalePreview);
+    document.getElementById("salePrice").addEventListener("input", updateSalePreview);
+
+    document.querySelectorAll(".nav-btn").forEach(btn => {
+      btn.addEventListener("click", () => switchPage(btn.dataset.page));
+    });
+
+    supabaseClient.auth.onAuthStateChange(async () => {
+      await syncAuthUI();
+    });
+
+    syncAuthUI();
+  </script>
+</body>
+</html>
