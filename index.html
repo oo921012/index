@@ -3,231 +3,64 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Inventory System Pro</title>
+  <title>Inventory System Pro+</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-      background: #f3f6fb;
-      color: #111827;
-    }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; background: #f3f6fb; color: #111827; }
     .hidden { display: none !important; }
-
-    .auth-wrap {
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      padding: 24px;
-      background:
-        radial-gradient(circle at top left, #dbeafe 0, transparent 30%),
-        radial-gradient(circle at bottom right, #e9d5ff 0, transparent 30%),
-        #f8fafc;
-    }
-    .auth-card {
-      width: 100%;
-      max-width: 420px;
-      background: rgba(255,255,255,0.96);
-      border: 1px solid #e5e7eb;
-      border-radius: 24px;
-      padding: 28px;
-      box-shadow: 0 18px 50px rgba(17,24,39,0.10);
-    }
-    .auth-title {
-      font-size: 28px;
-      font-weight: 800;
-      margin: 0 0 8px;
-    }
-    .auth-sub {
-      color: #6b7280;
-      margin: 0 0 22px;
-      font-size: 14px;
-    }
-
-    .app {
-      display: grid;
-      grid-template-columns: 260px 1fr;
-      min-height: 100vh;
-    }
-    .sidebar {
-      background: #0f172a;
-      color: #fff;
-      padding: 24px 18px;
-      position: sticky;
-      top: 0;
-      height: 100vh;
-    }
-    .brand {
-      font-size: 22px;
-      font-weight: 800;
-      margin-bottom: 28px;
-      letter-spacing: .3px;
-    }
-    .nav-btn {
-      width: 100%;
-      text-align: left;
-      border: 0;
-      background: transparent;
-      color: #cbd5e1;
-      padding: 14px 14px;
-      border-radius: 14px;
-      margin-bottom: 8px;
-      cursor: pointer;
-      font-size: 15px;
-    }
-    .nav-btn:hover, .nav-btn.active {
-      background: rgba(255,255,255,0.08);
-      color: #fff;
-    }
-    .sidebar-bottom {
-      position: absolute;
-      left: 18px;
-      right: 18px;
-      bottom: 18px;
-    }
-    .user-box {
-      font-size: 13px;
-      color: #cbd5e1;
-      margin-bottom: 12px;
-      word-break: break-word;
-    }
-
+    .auth-wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px; background:
+      radial-gradient(circle at top left, #dbeafe 0, transparent 30%),
+      radial-gradient(circle at bottom right, #e9d5ff 0, transparent 30%), #f8fafc; }
+    .auth-card { width: 100%; max-width: 420px; background: rgba(255,255,255,0.96); border: 1px solid #e5e7eb; border-radius: 24px; padding: 28px; box-shadow: 0 18px 50px rgba(17,24,39,0.10); }
+    .auth-title { font-size: 28px; font-weight: 800; margin: 0 0 8px; }
+    .auth-sub { color: #6b7280; margin: 0 0 22px; font-size: 14px; }
+    .app { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+    .sidebar { background: #0f172a; color: #fff; padding: 24px 18px; position: sticky; top: 0; height: 100vh; }
+    .brand { font-size: 22px; font-weight: 800; margin-bottom: 28px; letter-spacing: .3px; }
+    .nav-btn { width: 100%; text-align: left; border: 0; background: transparent; color: #cbd5e1; padding: 14px 14px; border-radius: 14px; margin-bottom: 8px; cursor: pointer; font-size: 15px; }
+    .nav-btn:hover, .nav-btn.active { background: rgba(255,255,255,0.08); color: #fff; }
+    .sidebar-bottom { position: absolute; left: 18px; right: 18px; bottom: 18px; }
+    .user-box { font-size: 13px; color: #cbd5e1; margin-bottom: 12px; word-break: break-word; }
     .main { padding: 24px; }
-    .topbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 20px;
-    }
-    .page-title {
-      font-size: 30px;
-      font-weight: 800;
-      margin: 0;
-    }
-    .muted {
-      color: #6b7280;
-      font-size: 14px;
-    }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px; }
+    .page-title { font-size: 30px; font-weight: 800; margin: 0; }
+    .muted { color: #6b7280; font-size: 14px; }
     .grid { display: grid; gap: 18px; }
     .grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
     .grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
     .grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
-
-    .card {
-      background: #fff;
-      border: 1px solid #e5e7eb;
-      border-radius: 22px;
-      padding: 20px;
-      box-shadow: 0 10px 30px rgba(17,24,39,0.05);
-    }
-    .stat-label {
-      color: #6b7280;
-      font-size: 13px;
-      margin-bottom: 10px;
-    }
-    .stat-value {
-      font-size: 28px;
-      font-weight: 800;
-    }
-    .stat-sub {
-      color: #64748b;
-      font-size: 13px;
-      margin-top: 8px;
-    }
-    .section-title {
-      font-size: 20px;
-      font-weight: 800;
-      margin: 0 0 16px;
-    }
+    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 22px; padding: 20px; box-shadow: 0 10px 30px rgba(17,24,39,0.05); }
+    .stat-label { color: #6b7280; font-size: 13px; margin-bottom: 10px; }
+    .stat-value { font-size: 28px; font-weight: 800; }
+    .stat-sub { color: #64748b; font-size: 13px; margin-top: 8px; }
+    .section-title { font-size: 20px; font-weight: 800; margin: 0 0 16px; }
     .form-grid { display: grid; gap: 12px; }
-    .row-2, .row-3 {
-      display: grid;
-      gap: 12px;
-    }
+    .row-2, .row-3, .row-4 { display: grid; gap: 12px; }
     .row-2 { grid-template-columns: 1fr 1fr; }
     .row-3 { grid-template-columns: 1fr 1fr 1fr; }
-
-    label {
-      display: block;
-      font-size: 13px;
-      color: #4b5563;
-      margin-bottom: 6px;
-      font-weight: 600;
-    }
-
-    input, select, textarea, button {
-      width: 100%;
-      border-radius: 14px;
-      border: 1px solid #d1d5db;
-      padding: 12px 14px;
-      font-size: 15px;
-      background: #fff;
-    }
-    textarea {
-      min-height: 90px;
-      resize: vertical;
-    }
-    input:focus, select:focus, textarea:focus {
-      outline: none;
-      border-color: #3b82f6;
-      box-shadow: 0 0 0 4px rgba(59,130,246,.12);
-    }
+    .row-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+    label { display: block; font-size: 13px; color: #4b5563; margin-bottom: 6px; font-weight: 600; }
+    input, select, textarea, button { width: 100%; border-radius: 14px; border: 1px solid #d1d5db; padding: 12px 14px; font-size: 15px; background: #fff; }
+    textarea { min-height: 90px; resize: vertical; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59,130,246,.12); }
     button { border: 0; cursor: pointer; font-weight: 700; }
     .btn-primary { background: #111827; color: #fff; }
     .btn-secondary { background: #e5e7eb; color: #111827; }
     .btn-danger { background: #fee2e2; color: #991b1b; }
-    .btn-small {
-      width: auto;
-      padding: 8px 12px;
-      border-radius: 10px;
-      font-size: 13px;
-      margin-right: 6px;
-    }
-
+    .btn-small { width: auto; padding: 8px 12px; border-radius: 10px; font-size: 13px; margin-right: 6px; }
     .table-wrap { overflow: auto; }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      min-width: 900px;
-    }
-    th, td {
-      padding: 12px 10px;
-      border-bottom: 1px solid #e5e7eb;
-      text-align: left;
-      font-size: 14px;
-      vertical-align: top;
-    }
-    th {
-      color: #6b7280;
-      font-weight: 700;
-      background: #f9fafb;
-      position: sticky;
-      top: 0;
-      z-index: 1;
-    }
-    .pill {
-      display: inline-block;
-      padding: 6px 10px;
-      border-radius: 999px;
-      background: #eef2ff;
-      color: #3730a3;
-      font-size: 12px;
-      font-weight: 700;
-    }
-    .notice {
-      margin-top: 12px;
-      font-size: 13px;
-      color: #6b7280;
-    }
+    table { width: 100%; border-collapse: collapse; min-width: 1100px; }
+    th, td { padding: 12px 10px; border-bottom: 1px solid #e5e7eb; text-align: left; font-size: 14px; vertical-align: top; }
+    th { color: #6b7280; font-weight: 700; background: #f9fafb; position: sticky; top: 0; z-index: 1; }
+    .pill { display: inline-block; padding: 6px 10px; border-radius: 999px; background: #eef2ff; color: #3730a3; font-size: 12px; font-weight: 700; }
+    .notice { margin-top: 12px; font-size: 13px; color: #6b7280; }
     .error { color: #b91c1c; font-size: 14px; margin-top: 10px; }
     .success { color: #166534; font-size: 14px; margin-top: 10px; }
-
     @media (max-width: 1200px) {
       .grid.cols-4 { grid-template-columns: repeat(2, 1fr); }
       .grid.cols-3 { grid-template-columns: 1fr; }
-      .grid.cols-2, .row-2, .row-3, .app { grid-template-columns: 1fr; }
+      .grid.cols-2, .row-2, .row-3, .row-4, .app { grid-template-columns: 1fr; }
       .sidebar { height: auto; position: static; }
       .sidebar-bottom { position: static; margin-top: 20px; }
     }
@@ -243,7 +76,6 @@
     <div class="auth-card">
       <h1 class="auth-title">後台登入</h1>
       <p class="auth-sub">使用你在 Supabase 建立的管理員帳號登入。</p>
-
       <div>
         <label for="loginEmail">Email</label>
         <input id="loginEmail" type="email" placeholder="oo92101@gmail.com" value="oo92101@gmail.com" />
@@ -259,19 +91,17 @@
       <div style="margin-top:12px;">
         <button class="btn-secondary" onclick="resetLogin()">重置登入</button>
       </div>
-      <div class="notice">這版是密碼登入，登入成功後才會看到後台。</div>
+      <div class="notice">登入成功後才會看到後台。</div>
     </div>
   </div>
 
   <div id="appView" class="app hidden">
     <aside class="sidebar">
-      <div class="brand">System Pro</div>
-
+      <div class="brand">System Pro+</div>
       <button class="nav-btn active" data-page="dashboard">Dashboard</button>
       <button class="nav-btn" data-page="inventory">多幣別進貨</button>
       <button class="nav-btn" data-page="sales">銷售紀錄</button>
       <button class="nav-btn" data-page="expenses">營運支出</button>
-
       <div class="sidebar-bottom">
         <div class="user-box" id="currentUserBox">未登入</div>
         <button class="btn-secondary" id="logoutBtn">登出</button>
@@ -282,7 +112,7 @@
       <div class="topbar">
         <div>
           <h2 class="page-title" id="pageTitle">Dashboard</h2>
-          <div class="muted">Supabase Auth + Database｜多幣別＋損益報表＋可編輯刪除</div>
+          <div class="muted">Supabase｜多幣別＋日期＋真正損益報表＋可編輯刪除</div>
         </div>
         <button class="btn-secondary" id="refreshBtn" style="max-width:160px;">重新整理資料</button>
       </div>
@@ -318,35 +148,23 @@
             <div class="stat-value" id="statSkuCount">0</div>
             <div class="stat-sub" id="statInventoryValue">庫存價值：NT$ 0</div>
           </div>
-
           <div class="card">
             <h3 class="section-title">最近銷售</h3>
             <div class="table-wrap">
               <table>
                 <thead>
-                  <tr>
-                    <th>時間</th>
-                    <th>商品</th>
-                    <th>數量</th>
-                    <th>總額</th>
-                  </tr>
+                  <tr><th>日期</th><th>商品</th><th>數量</th><th>總額</th></tr>
                 </thead>
                 <tbody id="dashboardSalesBody"></tbody>
               </table>
             </div>
           </div>
-
           <div class="card">
             <h3 class="section-title">最近支出</h3>
             <div class="table-wrap">
               <table>
                 <thead>
-                  <tr>
-                    <th>時間</th>
-                    <th>類別</th>
-                    <th>金額</th>
-                    <th>備註</th>
-                  </tr>
+                  <tr><th>日期</th><th>類別</th><th>金額</th><th>備註</th></tr>
                 </thead>
                 <tbody id="dashboardExpensesBody"></tbody>
               </table>
@@ -361,7 +179,11 @@
             <h3 class="section-title">新增 / 編輯進貨</h3>
             <div class="form-grid">
               <input type="hidden" id="invEditId" />
-              <div class="row-2">
+              <div class="row-3">
+                <div>
+                  <label>進貨日期</label>
+                  <input id="invDate" type="date" />
+                </div>
                 <div>
                   <label>商品名稱</label>
                   <input id="invName" placeholder="例如：襪子" />
@@ -371,7 +193,7 @@
                   <input id="invCategory" placeholder="例如：服飾" />
                 </div>
               </div>
-              <div class="row-3">
+              <div class="row-4">
                 <div>
                   <label>庫存數量</label>
                   <input id="invStock" type="number" min="1" placeholder="例如：20" />
@@ -391,12 +213,12 @@
                   <label>原始單價</label>
                   <input id="invUnitCost" type="number" min="0" step="0.01" placeholder="例如：500" />
                 </div>
-              </div>
-              <div class="row-3">
                 <div>
-                  <label>匯率（1單位外幣=幾台幣）</label>
+                  <label>匯率（1外幣=幾台幣）</label>
                   <input id="invExchangeRate" type="number" min="0" step="0.0001" value="1" />
                 </div>
+              </div>
+              <div class="row-3">
                 <div>
                   <label>平均成本（台幣）</label>
                   <input id="invCost" type="number" min="0" step="0.01" placeholder="自動計算，可手動覆蓋" />
@@ -404,6 +226,10 @@
                 <div>
                   <label>備註</label>
                   <input id="invNote" placeholder="來源/款式/批次" />
+                </div>
+                <div>
+                  <label>本批總成本（台幣）</label>
+                  <input id="invTotalCostPreview" readonly />
                 </div>
               </div>
               <div class="row-2">
@@ -415,19 +241,13 @@
           </div>
 
           <div class="card">
-            <h3 class="section-title">庫存清單</h3>
+            <h3 class="section-title">進貨 / 庫存清單</h3>
             <div class="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>商品</th>
-                    <th>分類</th>
-                    <th>庫存</th>
-                    <th>幣別</th>
-                    <th>原始單價</th>
-                    <th>成本(台幣)</th>
-                    <th>庫存價值</th>
-                    <th>操作</th>
+                    <th>日期</th><th>商品</th><th>分類</th><th>庫存</th><th>幣別</th>
+                    <th>原始單價</th><th>匯率</th><th>成本(台幣)</th><th>庫存價值</th><th>備註</th><th>操作</th>
                   </tr>
                 </thead>
                 <tbody id="inventoryBody"></tbody>
@@ -445,7 +265,11 @@
               <input type="hidden" id="saleEditId" />
               <input type="hidden" id="saleOriginalQty" />
               <input type="hidden" id="saleOriginalInventoryId" />
-              <div class="row-2">
+              <div class="row-3">
+                <div>
+                  <label>日期</label>
+                  <input id="saleDate" type="date" />
+                </div>
                 <div>
                   <label>商品</label>
                   <select id="saleProduct"></select>
@@ -455,10 +279,36 @@
                   <input id="saleQty" type="number" min="1" placeholder="例如：1" />
                 </div>
               </div>
-              <div class="row-2">
+              <div class="row-3">
                 <div>
                   <label>售價單價（台幣）</label>
                   <input id="salePrice" type="number" min="0" step="0.01" placeholder="例如：590" />
+                </div>
+                <div>
+                  <label>交易方式</label>
+                  <select id="salePayment">
+                    <option value="匯款">匯款</option>
+                    <option value="貨到付款">貨到付款</option>
+                    <option value="現金">現金</option>
+                  </select>
+                </div>
+                <div>
+                  <label>匯款後五碼</label>
+                  <input id="salePaymentCode" placeholder="匯款才填" />
+                </div>
+              </div>
+              <div class="row-3">
+                <div>
+                  <label>物流方式</label>
+                  <select id="saleDelivery">
+                    <option value="店到店">店到店</option>
+                    <option value="宅配">宅配</option>
+                    <option value="面交">面交</option>
+                  </select>
+                </div>
+                <div>
+                  <label>備註</label>
+                  <input id="saleNote" placeholder="可填客戶/平台/訂單" />
                 </div>
                 <div>
                   <label>總額預覽</label>
@@ -479,14 +329,8 @@
               <table>
                 <thead>
                   <tr>
-                    <th>時間</th>
-                    <th>商品</th>
-                    <th>數量</th>
-                    <th>單價</th>
-                    <th>總額</th>
-                    <th>成本</th>
-                    <th>毛利</th>
-                    <th>操作</th>
+                    <th>日期</th><th>商品</th><th>數量</th><th>單價</th><th>總額</th><th>成本</th><th>毛利</th>
+                    <th>交易方式</th><th>後五碼</th><th>物流</th><th>備註</th><th>操作</th>
                   </tr>
                 </thead>
                 <tbody id="salesBody"></tbody>
@@ -502,7 +346,11 @@
             <h3 class="section-title">新增 / 編輯支出</h3>
             <div class="form-grid">
               <input type="hidden" id="expEditId" />
-              <div class="row-2">
+              <div class="row-3">
+                <div>
+                  <label>日期</label>
+                  <input id="expDate" type="date" />
+                </div>
                 <div>
                   <label>類別</label>
                   <select id="expCategory">
@@ -537,13 +385,7 @@
             <div class="table-wrap">
               <table>
                 <thead>
-                  <tr>
-                    <th>時間</th>
-                    <th>類別</th>
-                    <th>金額</th>
-                    <th>備註</th>
-                    <th>操作</th>
-                  </tr>
+                  <tr><th>日期</th><th>類別</th><th>金額</th><th>備註</th><th>操作</th></tr>
                 </thead>
                 <tbody id="expensesBody"></tbody>
               </table>
@@ -563,56 +405,22 @@
     const appView = document.getElementById("appView");
     const authMsg = document.getElementById("authMsg");
     const currentUserBox = document.getElementById("currentUserBox");
-
     const state = { inventory: [], sales: [], expenses: [] };
 
-    function nt(n) {
-      return "NT$ " + Number(n || 0).toLocaleString("zh-TW", { maximumFractionDigits: 2 });
-    }
-
-    function formatTime(value) {
-      if (!value) return "-";
-      const d = new Date(value);
-      if (isNaN(d.getTime())) return value;
-      return d.toLocaleString("zh-TW", { hour12: false });
-    }
-
-    function numberValue(id) {
-      return Number(document.getElementById(id).value || 0);
-    }
-
-    function resetLogin() {
-      localStorage.clear();
-      sessionStorage.clear();
-      location.reload();
-    }
-
-    function setMsg(id, text, type = "error") {
-      const el = document.getElementById(id);
-      el.className = type;
-      el.textContent = text || "";
-    }
-
-    function clearMsgs() {
-      ["inventoryMsg", "salesMsg", "expensesMsg", "authMsg"].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = "";
-      });
-    }
+    function nt(n) { return "NT$ " + Number(n || 0).toLocaleString("zh-TW", { maximumFractionDigits: 2 }); }
+    function fmtDate(v) { return v || "-"; }
+    function resetLogin() { localStorage.clear(); sessionStorage.clear(); location.reload(); }
+    function setMsg(id, text, type="error") { const el = document.getElementById(id); el.className = type; el.textContent = text || ""; }
+    function clearMsgs() { ["inventoryMsg","salesMsg","expensesMsg","authMsg"].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=""; }); }
+    function todayStr() { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
 
     function switchPage(page) {
       document.querySelectorAll(".page").forEach(p => p.classList.add("hidden"));
       document.getElementById(`page-${page}`).classList.remove("hidden");
-      document.querySelectorAll(".nav-btn").forEach(btn => {
-        btn.classList.toggle("active", btn.dataset.page === page);
-      });
-      const titles = {
-        dashboard: "Dashboard",
-        inventory: "多幣別進貨",
-        sales: "銷售紀錄",
-        expenses: "營運支出"
-      };
-      document.getElementById("pageTitle").textContent = titles[page] || "Dashboard";
+      document.querySelectorAll(".nav-btn").forEach(btn => btn.classList.toggle("active", btn.dataset.page === page));
+      document.getElementById("pageTitle").textContent = {
+        dashboard:"Dashboard", inventory:"多幣別進貨", sales:"銷售紀錄", expenses:"營運支出"
+      }[page] || "Dashboard";
     }
 
     function calculateInventoryTwd() {
@@ -635,22 +443,12 @@
 
       document.getElementById("dashboardSalesBody").innerHTML =
         state.sales.slice(0, 8).map(row => `
-          <tr>
-            <td>${formatTime(row.created_at)}</td>
-            <td>${row.product_name ?? ""}</td>
-            <td>${row.qty ?? 0}</td>
-            <td>${nt(row.total)}</td>
-          </tr>
+          <tr><td>${fmtDate(row.date)}</td><td>${row.product_name ?? ""}</td><td>${row.qty ?? 0}</td><td>${nt(row.total)}</td></tr>
         `).join("") || `<tr><td colspan="4">目前沒有資料</td></tr>`;
 
       document.getElementById("dashboardExpensesBody").innerHTML =
         state.expenses.slice(0, 8).map(row => `
-          <tr>
-            <td>${formatTime(row.created_at)}</td>
-            <td>${row.category ?? ""}</td>
-            <td>${nt(row.amount)}</td>
-            <td>${row.note ?? ""}</td>
-          </tr>
+          <tr><td>${fmtDate(row.date)}</td><td>${row.category ?? ""}</td><td>${nt(row.amount)}</td><td>${row.note ?? ""}</td></tr>
         `).join("") || `<tr><td colspan="4">目前沒有資料</td></tr>`;
     }
 
@@ -658,55 +456,59 @@
       document.getElementById("inventoryBody").innerHTML =
         state.inventory.map(row => `
           <tr>
+            <td>${fmtDate(row.date)}</td>
             <td>${row.name ?? ""}</td>
             <td>${row.category ?? ""}</td>
             <td>${row.stock ?? 0}</td>
             <td><span class="pill">${row.currency ?? "TWD"}</span></td>
             <td>${Number(row.unit_cost || 0).toLocaleString("zh-TW")}</td>
+            <td>${Number(row.exchange_rate || 0).toLocaleString("zh-TW")}</td>
             <td>${nt(row.cost_twd)}</td>
             <td>${nt(Number(row.stock || 0) * Number(row.cost_twd || 0))}</td>
+            <td>${row.note ?? ""}</td>
             <td>
               <button class="btn-secondary btn-small" onclick="editInventory('${row.id}')">編輯</button>
               <button class="btn-danger btn-small" onclick="deleteInventory('${row.id}')">刪除</button>
             </td>
           </tr>
-        `).join("") || `<tr><td colspan="8">目前沒有庫存</td></tr>`;
+        `).join("") || `<tr><td colspan="11">目前沒有庫存</td></tr>`;
 
       const saleProduct = document.getElementById("saleProduct");
       saleProduct.innerHTML = state.inventory
         .filter(x => Number(x.stock) > 0)
         .map(row => `<option value="${row.id}">${row.name}（庫存：${row.stock}）</option>`)
         .join("");
-
-      if (!saleProduct.innerHTML) {
-        saleProduct.innerHTML = `<option value="">目前沒有可售商品</option>`;
-      }
+      if (!saleProduct.innerHTML) saleProduct.innerHTML = `<option value="">目前沒有可售商品</option>`;
     }
 
     function renderSales() {
       document.getElementById("salesBody").innerHTML =
         state.sales.map(row => `
           <tr>
-            <td>${formatTime(row.created_at)}</td>
+            <td>${fmtDate(row.date)}</td>
             <td>${row.product_name ?? ""}</td>
             <td>${row.qty ?? 0}</td>
             <td>${nt(row.price)}</td>
             <td>${nt(row.total)}</td>
             <td>${nt(row.cost_twd)}</td>
             <td>${nt(Number(row.total || 0) - Number(row.cost_twd || 0))}</td>
+            <td>${row.payment_method ?? ""}</td>
+            <td>${row.payment_code ?? ""}</td>
+            <td>${row.delivery_method ?? ""}</td>
+            <td>${row.note ?? ""}</td>
             <td>
               <button class="btn-secondary btn-small" onclick="editSale('${row.id}')">編輯</button>
               <button class="btn-danger btn-small" onclick="deleteSale('${row.id}')">刪除</button>
             </td>
           </tr>
-        `).join("") || `<tr><td colspan="8">目前沒有銷售資料</td></tr>`;
+        `).join("") || `<tr><td colspan="12">目前沒有銷售資料</td></tr>`;
     }
 
     function renderExpenses() {
       document.getElementById("expensesBody").innerHTML =
         state.expenses.map(row => `
           <tr>
-            <td>${formatTime(row.created_at)}</td>
+            <td>${fmtDate(row.date)}</td>
             <td>${row.category ?? ""}</td>
             <td>${nt(row.amount)}</td>
             <td>${row.note ?? ""}</td>
@@ -720,11 +522,10 @@
 
     async function loadAllData() {
       clearMsgs();
-
       const [{ data: inventory, error: invErr }, { data: sales, error: salesErr }, { data: expenses, error: expErr }] = await Promise.all([
-        supabaseClient.from("inventory").select("*").order("created_at", { ascending: false }),
-        supabaseClient.from("sales").select("*").order("created_at", { ascending: false }),
-        supabaseClient.from("expenses").select("*").order("created_at", { ascending: false })
+        supabaseClient.from("inventory").select("*").order("date", { ascending: false, nullsFirst: false }),
+        supabaseClient.from("sales").select("*").order("date", { ascending: false, nullsFirst: false }),
+        supabaseClient.from("expenses").select("*").order("date", { ascending: false, nullsFirst: false })
       ]);
 
       if (invErr) setMsg("inventoryMsg", invErr.message, "error");
@@ -734,39 +535,26 @@
       state.inventory = inventory || [];
       state.sales = sales || [];
       state.expenses = expenses || [];
-
-      renderDashboard();
-      renderInventory();
-      renderSales();
-      renderExpenses();
-      updateSalePreview();
+      renderDashboard(); renderInventory(); renderSales(); renderExpenses(); updateSalePreview();
     }
 
     async function handleLogin() {
       authMsg.textContent = "";
       const email = document.getElementById("loginEmail").value.trim();
       const password = document.getElementById("loginPassword").value;
-
       const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-      if (error) {
-        authMsg.textContent = error.message;
-        return;
-      }
-
+      if (error) { authMsg.textContent = error.message; return; }
       authView.classList.add("hidden");
       appView.classList.remove("hidden");
       currentUserBox.textContent = `已登入：${data.user.email}`;
       await loadAllData();
     }
 
-    async function handleLogout() {
-      await supabaseClient.auth.signOut({ scope: 'local' });
-    }
+    async function handleLogout() { await supabaseClient.auth.signOut({ scope: 'local' }); }
 
     async function syncAuthUI() {
       const { data } = await supabaseClient.auth.getSession();
       const session = data.session;
-
       if (session?.user) {
         authView.classList.add("hidden");
         appView.classList.remove("hidden");
@@ -784,16 +572,16 @@
       const currency = document.getElementById("invCurrency").value;
       const unitCost = Number(document.getElementById("invUnitCost").value || 0);
       let rate = Number(document.getElementById("invExchangeRate").value || 0);
-
+      const stock = Number(document.getElementById("invStock").value || 0);
       if (currency === "TWD") rate = 1;
       const twd = unitCost * rate;
-      if (unitCost > 0 && rate > 0) {
-        document.getElementById("invCost").value = twd.toFixed(2);
-      }
+      if (unitCost > 0 && rate > 0) document.getElementById("invCost").value = twd.toFixed(2);
+      document.getElementById("invTotalCostPreview").value = nt(twd * stock);
     }
 
     function resetInventoryForm() {
       document.getElementById("invEditId").value = "";
+      document.getElementById("invDate").value = todayStr();
       document.getElementById("invName").value = "";
       document.getElementById("invCategory").value = "";
       document.getElementById("invStock").value = "";
@@ -802,12 +590,14 @@
       document.getElementById("invExchangeRate").value = "1";
       document.getElementById("invCost").value = "";
       document.getElementById("invNote").value = "";
+      document.getElementById("invTotalCostPreview").value = nt(0);
       setMsg("inventoryMsg", "");
     }
 
     async function addInventory() {
       setMsg("inventoryMsg", "");
       const editId = document.getElementById("invEditId").value;
+      const date = document.getElementById("invDate").value || null;
       const name = document.getElementById("invName").value.trim();
       const category = document.getElementById("invCategory").value.trim();
       const stock = Number(document.getElementById("invStock").value);
@@ -818,39 +608,29 @@
       const note = document.getElementById("invNote").value.trim();
       const cost_twd = manualCost > 0 ? manualCost : unit_cost * exchange_rate;
 
-      if (!name || !category || stock <= 0 || unit_cost < 0 || cost_twd < 0) {
+      if (!date || !name || !category || stock <= 0 || unit_cost < 0 || cost_twd < 0) {
         setMsg("inventoryMsg", "請完整填寫進貨資料");
         return;
       }
-
       if (currency !== "TWD" && exchange_rate <= 0) {
         setMsg("inventoryMsg", "外幣請填寫正確匯率");
         return;
       }
 
-      const payload = { name, category, stock, currency, unit_cost, exchange_rate, cost_twd, note };
+      const payload = { date, name, category, stock, currency, unit_cost, exchange_rate, cost_twd, note };
+      const result = editId
+        ? await supabaseClient.from("inventory").update(payload).eq("id", editId).select()
+        : await supabaseClient.from("inventory").insert([payload]).select();
 
-      let result;
-      if (editId) {
-        result = await supabaseClient.from("inventory").update(payload).eq("id", editId).select();
-      } else {
-        result = await supabaseClient.from("inventory").insert([payload]).select();
-      }
-
-      if (result.error) {
-        setMsg("inventoryMsg", result.error.message);
-        return;
-      }
-
+      if (result.error) { setMsg("inventoryMsg", result.error.message); return; }
       setMsg("inventoryMsg", editId ? "更新成功" : "新增成功", "success");
-      resetInventoryForm();
-      await loadAllData();
+      resetInventoryForm(); await loadAllData();
     }
 
     async function editInventory(id) {
-      const item = state.inventory.find(x => x.id === id);
-      if (!item) return;
+      const item = state.inventory.find(x => x.id === id); if (!item) return;
       document.getElementById("invEditId").value = item.id;
+      document.getElementById("invDate").value = item.date || todayStr();
       document.getElementById("invName").value = item.name || "";
       document.getElementById("invCategory").value = item.category || "";
       document.getElementById("invStock").value = item.stock || "";
@@ -859,26 +639,16 @@
       document.getElementById("invExchangeRate").value = item.exchange_rate || 1;
       document.getElementById("invCost").value = item.cost_twd || "";
       document.getElementById("invNote").value = item.note || "";
-      switchPage("inventory");
+      computeCostTwd(); switchPage("inventory");
     }
 
     async function deleteInventory(id) {
-      const item = state.inventory.find(x => x.id === id);
-      if (!item) return;
+      const item = state.inventory.find(x => x.id === id); if (!item) return;
       if (!confirm(`確定刪除商品「${item.name}」嗎？`)) return;
-
       const relatedSales = state.sales.filter(x => x.inventory_id === id);
-      if (relatedSales.length > 0) {
-        setMsg("inventoryMsg", "這個商品已有銷售紀錄，不能直接刪除", "error");
-        switchPage("inventory");
-        return;
-      }
-
+      if (relatedSales.length > 0) { setMsg("inventoryMsg", "這個商品已有銷售紀錄，不能直接刪除", "error"); switchPage("inventory"); return; }
       const { error } = await supabaseClient.from("inventory").delete().eq("id", id);
-      if (error) {
-        setMsg("inventoryMsg", error.message);
-        return;
-      }
+      if (error) { setMsg("inventoryMsg", error.message); return; }
       await loadAllData();
     }
 
@@ -886,8 +656,13 @@
       document.getElementById("saleEditId").value = "";
       document.getElementById("saleOriginalQty").value = "";
       document.getElementById("saleOriginalInventoryId").value = "";
+      document.getElementById("saleDate").value = todayStr();
       document.getElementById("saleQty").value = "";
       document.getElementById("salePrice").value = "";
+      document.getElementById("salePayment").value = "匯款";
+      document.getElementById("salePaymentCode").value = "";
+      document.getElementById("saleDelivery").value = "店到店";
+      document.getElementById("saleNote").value = "";
       updateSalePreview();
       setMsg("salesMsg", "");
     }
@@ -895,130 +670,92 @@
     async function addSale() {
       setMsg("salesMsg", "");
       const editId = document.getElementById("saleEditId").value;
+      const date = document.getElementById("saleDate").value || null;
       const productId = document.getElementById("saleProduct").value;
       const qty = Number(document.getElementById("saleQty").value);
       const price = Number(document.getElementById("salePrice").value);
+      const payment_method = document.getElementById("salePayment").value;
+      const payment_code = document.getElementById("salePaymentCode").value.trim();
+      const delivery_method = document.getElementById("saleDelivery").value;
+      const note = document.getElementById("saleNote").value.trim();
       const originalQty = Number(document.getElementById("saleOriginalQty").value || 0);
       const originalInventoryId = document.getElementById("saleOriginalInventoryId").value;
 
-      if (!productId || qty <= 0 || price < 0) {
-        setMsg("salesMsg", "請完整填寫銷售資料");
-        return;
-      }
+      if (!date || !productId || qty <= 0 || price < 0) { setMsg("salesMsg", "請完整填寫銷售資料"); return; }
+      if (payment_method === "匯款" && payment_code && !/^\d{5}$/.test(payment_code)) { setMsg("salesMsg", "匯款後五碼需為5位數"); return; }
 
       const item = state.inventory.find(x => x.id === productId);
-      if (!item) {
-        setMsg("salesMsg", "找不到商品");
-        return;
-      }
+      if (!item) { setMsg("salesMsg", "找不到商品"); return; }
 
       let availableStock = Number(item.stock);
-      if (editId && originalInventoryId === productId) {
-        availableStock += originalQty;
-      }
-
-      if (availableStock < qty) {
-        setMsg("salesMsg", `庫存不足，目前可用 ${availableStock}`);
-        return;
-      }
+      if (editId && originalInventoryId === productId) availableStock += originalQty;
+      if (availableStock < qty) { setMsg("salesMsg", `庫存不足，目前可用 ${availableStock}`); return; }
 
       const total = qty * price;
       const cost_twd = Number(item.cost_twd || 0) * qty;
 
       if (editId) {
-        // restore original stock if same/other item
         if (originalInventoryId) {
           const oldItem = state.inventory.find(x => x.id === originalInventoryId);
           if (oldItem) {
-            await supabaseClient.from("inventory").update({
-              stock: Number(oldItem.stock) + originalQty
-            }).eq("id", oldItem.id);
+            await supabaseClient.from("inventory").update({ stock: Number(oldItem.stock) + originalQty }).eq("id", oldItem.id);
           }
         }
-
-        const newItem = state.inventory.find(x => x.id === productId);
-        await supabaseClient.from("inventory").update({
-          stock: Number(newItem.stock) - qty
-        }).eq("id", productId);
+        const refreshedNewItem = state.inventory.find(x => x.id === productId);
+        await supabaseClient.from("inventory").update({ stock: Number(refreshedNewItem.stock) - qty }).eq("id", productId);
 
         const { error } = await supabaseClient.from("sales").update({
-          inventory_id: productId,
-          product_name: item.name,
-          qty, price, total, cost_twd
+          date, inventory_id: productId, product_name: item.name, qty, price, total, cost_twd,
+          payment_method, payment_code, delivery_method, note
         }).eq("id", editId).select();
 
-        if (error) {
-          setMsg("salesMsg", error.message);
-          return;
-        }
-
+        if (error) { setMsg("salesMsg", error.message); return; }
         setMsg("salesMsg", "更新成功", "success");
       } else {
-        const { error: updateErr } = await supabaseClient
-          .from("inventory")
-          .update({ stock: Number(item.stock) - qty })
-          .eq("id", item.id);
+        const { error: updateErr } = await supabaseClient.from("inventory").update({ stock: Number(item.stock) - qty }).eq("id", item.id);
+        if (updateErr) { setMsg("salesMsg", updateErr.message); return; }
 
-        if (updateErr) {
-          setMsg("salesMsg", updateErr.message);
-          return;
-        }
+        const { error: insertErr } = await supabaseClient.from("sales").insert([{
+          date, inventory_id: item.id, product_name: item.name, qty, price, total, cost_twd,
+          payment_method, payment_code, delivery_method, note
+        }]).select();
 
-        const { error: insertErr } = await supabaseClient
-          .from("sales")
-          .insert([{
-            inventory_id: item.id,
-            product_name: item.name,
-            qty, price, total, cost_twd
-          }]).select();
-
-        if (insertErr) {
-          setMsg("salesMsg", insertErr.message);
-          return;
-        }
-
+        if (insertErr) { setMsg("salesMsg", insertErr.message); return; }
         setMsg("salesMsg", "銷售新增成功", "success");
       }
 
-      resetSaleForm();
-      await loadAllData();
+      resetSaleForm(); await loadAllData();
     }
 
     async function editSale(id) {
-      const row = state.sales.find(x => x.id === id);
-      if (!row) return;
+      const row = state.sales.find(x => x.id === id); if (!row) return;
       document.getElementById("saleEditId").value = row.id;
       document.getElementById("saleOriginalQty").value = row.qty || 0;
       document.getElementById("saleOriginalInventoryId").value = row.inventory_id || "";
+      document.getElementById("saleDate").value = row.date || todayStr();
       document.getElementById("saleProduct").value = row.inventory_id || "";
       document.getElementById("saleQty").value = row.qty || "";
       document.getElementById("salePrice").value = row.price || "";
-      updateSalePreview();
-      switchPage("sales");
+      document.getElementById("salePayment").value = row.payment_method || "匯款";
+      document.getElementById("salePaymentCode").value = row.payment_code || "";
+      document.getElementById("saleDelivery").value = row.delivery_method || "店到店";
+      document.getElementById("saleNote").value = row.note || "";
+      updateSalePreview(); switchPage("sales");
     }
 
     async function deleteSale(id) {
-      const row = state.sales.find(x => x.id === id);
-      if (!row) return;
+      const row = state.sales.find(x => x.id === id); if (!row) return;
       if (!confirm(`確定刪除銷售「${row.product_name}」嗎？`)) return;
-
       const item = state.inventory.find(x => x.id === row.inventory_id);
-      if (item) {
-        await supabaseClient.from("inventory").update({
-          stock: Number(item.stock) + Number(row.qty || 0)
-        }).eq("id", item.id);
-      }
-
+      if (item) await supabaseClient.from("inventory").update({ stock: Number(item.stock) + Number(row.qty || 0) }).eq("id", item.id);
       const { error } = await supabaseClient.from("sales").delete().eq("id", id);
-      if (error) {
-        setMsg("salesMsg", error.message);
-        return;
-      }
+      if (error) { setMsg("salesMsg", error.message); return; }
       await loadAllData();
     }
 
     function resetExpenseForm() {
       document.getElementById("expEditId").value = "";
+      document.getElementById("expDate").value = todayStr();
       document.getElementById("expCategory").value = "機票";
       document.getElementById("expAmount").value = "";
       document.getElementById("expNote").value = "";
@@ -1028,36 +765,26 @@
     async function addExpense() {
       setMsg("expensesMsg", "");
       const editId = document.getElementById("expEditId").value;
+      const date = document.getElementById("expDate").value || null;
       const category = document.getElementById("expCategory").value;
       const amount = Number(document.getElementById("expAmount").value);
       const note = document.getElementById("expNote").value.trim();
 
-      if (!category || amount < 0) {
-        setMsg("expensesMsg", "請完整填寫支出資料");
-        return;
-      }
+      if (!date || !category || amount < 0) { setMsg("expensesMsg", "請完整填寫支出資料"); return; }
 
-      let result;
-      if (editId) {
-        result = await supabaseClient.from("expenses").update({ category, amount, note }).eq("id", editId).select();
-      } else {
-        result = await supabaseClient.from("expenses").insert([{ category, amount, note }]).select();
-      }
+      const result = editId
+        ? await supabaseClient.from("expenses").update({ date, category, amount, note }).eq("id", editId).select()
+        : await supabaseClient.from("expenses").insert([{ date, category, amount, note }]).select();
 
-      if (result.error) {
-        setMsg("expensesMsg", result.error.message);
-        return;
-      }
-
+      if (result.error) { setMsg("expensesMsg", result.error.message); return; }
       setMsg("expensesMsg", editId ? "更新成功" : "支出新增成功", "success");
-      resetExpenseForm();
-      await loadAllData();
+      resetExpenseForm(); await loadAllData();
     }
 
     async function editExpense(id) {
-      const row = state.expenses.find(x => x.id === id);
-      if (!row) return;
+      const row = state.expenses.find(x => x.id === id); if (!row) return;
       document.getElementById("expEditId").value = row.id;
+      document.getElementById("expDate").value = row.date || todayStr();
       document.getElementById("expCategory").value = row.category || "機票";
       document.getElementById("expAmount").value = row.amount || "";
       document.getElementById("expNote").value = row.note || "";
@@ -1065,14 +792,10 @@
     }
 
     async function deleteExpense(id) {
-      const row = state.expenses.find(x => x.id === id);
-      if (!row) return;
+      const row = state.expenses.find(x => x.id === id); if (!row) return;
       if (!confirm(`確定刪除支出「${row.category}」嗎？`)) return;
       const { error } = await supabaseClient.from("expenses").delete().eq("id", id);
-      if (error) {
-        setMsg("expensesMsg", error.message);
-        return;
-      }
+      if (error) { setMsg("expensesMsg", error.message); return; }
       await loadAllData();
     }
 
@@ -1093,17 +816,14 @@
     document.getElementById("invCurrency").addEventListener("change", computeCostTwd);
     document.getElementById("invUnitCost").addEventListener("input", computeCostTwd);
     document.getElementById("invExchangeRate").addEventListener("input", computeCostTwd);
+    document.getElementById("invStock").addEventListener("input", computeCostTwd);
     document.getElementById("cancelInventoryEditBtn").addEventListener("click", resetInventoryForm);
     document.getElementById("cancelSaleEditBtn").addEventListener("click", resetSaleForm);
     document.getElementById("cancelExpenseEditBtn").addEventListener("click", resetExpenseForm);
 
-    document.querySelectorAll(".nav-btn").forEach(btn => {
-      btn.addEventListener("click", () => switchPage(btn.dataset.page));
-    });
+    document.querySelectorAll(".nav-btn").forEach(btn => btn.addEventListener("click", () => switchPage(btn.dataset.page)));
 
     supabaseClient.auth.onAuthStateChange((event, session) => {
-      console.log("auth event:", event);
-
       if (session?.user) {
         authView.classList.add("hidden");
         appView.classList.remove("hidden");
@@ -1118,7 +838,7 @@
     });
 
     syncAuthUI();
-
+    resetInventoryForm(); resetSaleForm(); resetExpenseForm();
     window.editInventory = editInventory;
     window.deleteInventory = deleteInventory;
     window.editSale = editSale;
