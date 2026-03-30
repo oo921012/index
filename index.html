@@ -57,6 +57,10 @@
     th { color: #6b7280; font-weight: 700; background: #f9fafb; position: sticky; top: 0; z-index: 1; }
     .pill { display: inline-block; padding: 6px 10px; border-radius: 999px; background: #eef2ff; color: #3730a3; font-size: 12px; font-weight: 700; }
     .low-pill { display: inline-block; padding: 6px 10px; border-radius: 999px; background: #fee2e2; color: #991b1b; font-size: 12px; font-weight: 700; }
+
+    .order-row-light td { background: #f7f7f7; }
+    .order-row-dark td { background: #ececec; }
+
     .notice { margin-top: 12px; font-size: 13px; color: #6b7280; }
     .error { color: #b91c1c; font-size: 14px; margin-top: 10px; }
     .success { color: #166534; font-size: 14px; margin-top: 10px; }
@@ -219,6 +223,7 @@
               <input id="purchaseHistorySearch" placeholder="搜尋進貨歷史" />
             </div>
 
+            <div id="inventoryTotalValue" style="margin-bottom:10px;font-weight:700;">庫存總值：NT$ 0</div>
             <div class="table-wrap" id="mergedInventoryWrap">
               <table>
                 <thead>
@@ -576,6 +581,25 @@
       const wb = XLSX.utils.book_new();
       for (const [sheetName, data] of Object.entries(sheets)) {
         const ws = XLSX.utils.json_to_sheet(data);
+
+        if (data.length > 0) {
+          const headers = Object.keys(data[0]);
+          ws["!cols"] = headers.map((header) => {
+            let maxLen = String(header || "").length;
+            data.forEach((row) => {
+              const cell = row[header];
+              const len = String(cell ?? "").length;
+              if (len > maxLen) maxLen = len;
+            });
+
+            // 商品 / 備註 / 訂單編號欄位給更寬
+            if (header.includes("商品")) return { wch: Math.min(Math.max(maxLen + 4, 24), 50) };
+            if (header.includes("備註")) return { wch: Math.min(Math.max(maxLen + 4, 20), 60) };
+            if (header.includes("訂單")) return { wch: Math.min(Math.max(maxLen + 4, 18), 28) };
+            return { wch: Math.min(Math.max(maxLen + 2, 12), 24) };
+          });
+        }
+
         XLSX.utils.book_append_sheet(wb, ws, sheetName);
       }
       XLSX.writeFile(wb, filename);
@@ -702,6 +726,22 @@
       })).filter(x => x.productId || x.qty || x.price);
     }
 
+
+    function mergeSaleItems(items) {
+      const map = new Map();
+      for (const item of items) {
+        if (!item.productId) continue;
+        const key = String(item.productId) + "::" + String(item.price || 0);
+        if (!map.has(key)) {
+          map.set(key, { productId: item.productId, qty: Number(item.qty || 0), price: Number(item.price || 0) });
+        } else {
+          const row = map.get(key);
+          row.qty += Number(item.qty || 0);
+        }
+      }
+      return [...map.values()].filter(x => x.productId && x.qty > 0);
+    }
+
     function renderDashboard() {
       const revenue = state.sales.reduce((sum, x) => sum + Number(x.total || 0), 0);
       const cost = state.sales.reduce((sum, x) => sum + Number(x.cost_twd || 0), 0);
@@ -722,6 +762,13 @@
           if (!keyword) return true;
           return (row.name || "").toLowerCase().includes(keyword) || (row.category || "").toLowerCase().includes(keyword);
         });
+
+      const totalValue = rows.reduce((sum, row) => {
+        return sum + (Number(row.stock || 0) * Number(row.cost_twd || 0));
+      }, 0);
+
+      document.getElementById("inventoryTotalValue").innerText =
+        "庫存總值：NT$ " + totalValue.toLocaleString("zh-TW");
 
       document.getElementById("inventoryBody").innerHTML =
         rows.map(row => `
@@ -780,34 +827,67 @@
 
     function renderSales() {
       const keyword = (document.getElementById("salesSearch").value || "").trim().toLowerCase();
-      const rows = state.sales.filter(row => {
+      const filteredRows = state.sales.filter(row => {
         if (!keyword) return true;
         return [row.order_no, row.product_name, row.note, row.payment_method, row.delivery_method, row.shipment_status, row.payment_status].some(v => (v || "").toLowerCase().includes(keyword));
       });
 
+      const rows = [...filteredRows].sort((a, b) => {
+        const ao = a.order_no || `single-${a.id}`;
+        const bo = b.order_no || `single-${b.id}`;
+        const aInfo = extractSizeInfo(a.product_name || "");
+        const bInfo = extractSizeInfo(b.product_name || "");
+
+        return (
+          ao.localeCompare(bo) ||
+          aInfo.baseName.localeCompare(bInfo.baseName) ||
+          aInfo.sizeOrder - bInfo.sizeOrder ||
+          (a.product_name || "").localeCompare(b.product_name || "") ||
+          (a.date || "").localeCompare(b.date || "")
+        );
+      });
+
+      const orderShadeMap = {};
+      let toggle = false;
+      rows.forEach(row => {
+        const key = row.order_no || `single-${row.id}`;
+        if (!(key in orderShadeMap)) {
+          orderShadeMap[key] = toggle ? "order-row-dark" : "order-row-light";
+          toggle = !toggle;
+        }
+      });
+
       document.getElementById("salesBody").innerHTML =
-        rows.map(row => `
-          <tr>
-            <td>${fmtDate(row.date)}</td>
-            <td>${row.order_no ?? ""}</td>
-            <td>${row.product_name ?? ""}</td>
-            <td>${row.qty ?? 0}</td>
-            <td>${nt(row.price)}</td>
-            <td>${nt(row.total)}</td>
-            <td>${nt(row.cost_twd)}</td>
-            <td>${nt(Number(row.total || 0) - Number(row.cost_twd || 0))}</td>
-            <td>${row.shipment_status ?? ""}</td>
-            <td>${row.payment_status ?? ""}</td>
-            <td>${row.payment_method ?? ""}</td>
-            <td>${row.payment_code ?? ""}</td>
-            <td>${row.delivery_method ?? ""}</td>
-            <td>${row.note ?? ""}</td>
-            <td>
+        rows.map((row, index) => {
+          const key = row.order_no || `single-${row.id}`;
+          const rowClass = orderShadeMap[key];
+          const prevKey = index > 0 ? (rows[index - 1].order_no || `single-${rows[index - 1].id}`) : null;
+          const nextKey = index < rows.length - 1 ? (rows[index + 1].order_no || `single-${rows[index + 1].id}`) : null;
+          const showTopBorder = prevKey !== key;
+          const showBottomBorder = nextKey !== key;
+
+          return `
+          <tr class="${rowClass}">
+            <td style="${showTopBorder ? 'border-top:2px solid #d1d5db;' : ''}${showBottomBorder ? 'border-bottom:2px solid #d1d5db;' : ''}">${fmtDate(row.date)}</td>
+            <td style="${showTopBorder ? 'border-top:2px solid #d1d5db;' : ''}${showBottomBorder ? 'border-bottom:2px solid #d1d5db;' : ''}">${row.order_no ?? ""}</td>
+            <td style="${showTopBorder ? 'border-top:2px solid #d1d5db;' : ''}${showBottomBorder ? 'border-bottom:2px solid #d1d5db;' : ''}">${row.product_name ?? ""}</td>
+            <td style="${showTopBorder ? 'border-top:2px solid #d1d5db;' : ''}${showBottomBorder ? 'border-bottom:2px solid #d1d5db;' : ''}">${row.qty ?? 0}</td>
+            <td style="${showTopBorder ? 'border-top:2px solid #d1d5db;' : ''}${showBottomBorder ? 'border-bottom:2px solid #d1d5db;' : ''}">${nt(row.price)}</td>
+            <td style="${showTopBorder ? 'border-top:2px solid #d1d5db;' : ''}${showBottomBorder ? 'border-bottom:2px solid #d1d5db;' : ''}">${nt(row.total)}</td>
+            <td style="${showTopBorder ? 'border-top:2px solid #d1d5db;' : ''}${showBottomBorder ? 'border-bottom:2px solid #d1d5db;' : ''}">${nt(row.cost_twd)}</td>
+            <td style="${showTopBorder ? 'border-top:2px solid #d1d5db;' : ''}${showBottomBorder ? 'border-bottom:2px solid #d1d5db;' : ''}">${nt(Number(row.total || 0) - Number(row.cost_twd || 0))}</td>
+            <td style="${showTopBorder ? 'border-top:2px solid #d1d5db;' : ''}${showBottomBorder ? 'border-bottom:2px solid #d1d5db;' : ''}">${row.shipment_status ?? ""}</td>
+            <td style="${showTopBorder ? 'border-top:2px solid #d1d5db;' : ''}${showBottomBorder ? 'border-bottom:2px solid #d1d5db;' : ''}">${row.payment_status ?? ""}</td>
+            <td style="${showTopBorder ? 'border-top:2px solid #d1d5db;' : ''}${showBottomBorder ? 'border-bottom:2px solid #d1d5db;' : ''}">${row.payment_method ?? ""}</td>
+            <td style="${showTopBorder ? 'border-top:2px solid #d1d5db;' : ''}${showBottomBorder ? 'border-bottom:2px solid #d1d5db;' : ''}">${row.payment_code ?? ""}</td>
+            <td style="${showTopBorder ? 'border-top:2px solid #d1d5db;' : ''}${showBottomBorder ? 'border-bottom:2px solid #d1d5db;' : ''}">${row.delivery_method ?? ""}</td>
+            <td style="${showTopBorder ? 'border-top:2px solid #d1d5db;' : ''}${showBottomBorder ? 'border-bottom:2px solid #d1d5db;' : ''}">${row.note ?? ""}</td>
+            <td style="${showTopBorder ? 'border-top:2px solid #d1d5db;' : ''}${showBottomBorder ? 'border-bottom:2px solid #d1d5db;' : ''}">
               <button class="btn-secondary btn-small" onclick="editSale('${row.id}')">編輯</button>
               <button class="btn-danger btn-small" onclick="deleteSale('${row.id}')">刪除</button>
             </td>
-          </tr>
-        `).join("") || `<tr><td colspan="15">目前沒有銷售資料</td></tr>`;
+          </tr>`;
+        }).join("") || `<tr><td colspan="15">目前沒有銷售資料</td></tr>`;
     }
 
     function renderExpenses() {
@@ -1114,80 +1194,98 @@
       const shipment_status = document.getElementById("saleShipmentStatus").value;
       const payment_status = document.getElementById("salePaymentStatus").value;
       const note = document.getElementById("saleNote").value.trim();
-      const originalQty = Number(document.getElementById("saleOriginalQty").value || 0);
-      const originalInventoryId = document.getElementById("saleOriginalInventoryId").value;
-      const items = collectSaleItems();
+      const items = mergeSaleItems(collectSaleItems());
 
       if (!date || items.length === 0) { setMsg("salesMsg", "請完整填寫銷售資料"); return; }
       if (payment_method === "匯款" && payment_code && !/^\d{5}$/.test(payment_code)) { setMsg("salesMsg", "匯款後五碼需為5位數"); return; }
 
+      // 編輯整張訂單
       if (editId) {
-        if (items.length !== 1) {
-          setMsg("salesMsg", "編輯模式目前只能保留一項商品。");
-          return;
-        }
-        const line = items[0];
-        const item = state.inventory.find(x => x.id === line.productId);
-        if (!item) { setMsg("salesMsg", "找不到商品"); return; }
+        const oldRows = state.sales.filter(x => (x.order_no || x.id) === editId);
+        if (!oldRows.length) { setMsg("salesMsg", "找不到原本訂單"); return; }
 
-        const oldItem = state.inventory.find(x => x.id === originalInventoryId);
-        const originalQtyNum = Number(originalQty || 0);
-        let availableStock = Number(item.stock || 0);
-
-        if (originalInventoryId === line.productId) {
-          availableStock += originalQtyNum;
-        }
-        if (availableStock < line.qty) {
-          setMsg("salesMsg", `庫存不足，目前可用 ${availableStock}`);
-          return;
+        const restoredMap = new Map();
+        for (const row of oldRows) {
+          const key = String(row.inventory_id);
+          restoredMap.set(key, (restoredMap.get(key) || 0) + Number(row.qty || 0));
         }
 
-        if (originalInventoryId === line.productId) {
-          const finalStock = Number(item.stock || 0) + originalQtyNum - Number(line.qty || 0);
-          const { error: stockErr } = await supabaseClient
+        for (const line of items) {
+          if (!line.productId || line.qty <= 0 || line.price < 0) {
+            setMsg("salesMsg", "請確認每一項商品都有商品、數量與單價");
+            return;
+          }
+          const item = state.inventory.find(x => String(x.id) === String(line.productId));
+          if (!item) { setMsg("salesMsg", "有商品不存在"); return; }
+
+          const availableStock = Number(item.stock || 0) + Number(restoredMap.get(String(line.productId)) || 0);
+          if (availableStock < Number(line.qty || 0)) {
+            setMsg("salesMsg", `${item.name} 庫存不足，目前可用 ${availableStock}`);
+            return;
+          }
+        }
+
+        // 先把舊訂單庫存補回
+        for (const row of oldRows) {
+          const item = state.inventory.find(x => String(x.id) === String(row.inventory_id));
+          if (item) {
+            const restoredStock = Number(item.stock || 0) + Number(row.qty || 0);
+            const { error: restoreErr } = await supabaseClient
+              .from("inventory")
+              .update({ stock: restoredStock })
+              .eq("id", item.id);
+            if (restoreErr) { setMsg("salesMsg", restoreErr.message); return; }
+            item.stock = restoredStock;
+          }
+        }
+
+        // 再依照新訂單扣庫存
+        for (const line of items) {
+          const item = state.inventory.find(x => String(x.id) === String(line.productId));
+          const finalStock = Number(item.stock || 0) - Number(line.qty || 0);
+          const { error: deductErr } = await supabaseClient
             .from("inventory")
             .update({ stock: finalStock })
             .eq("id", item.id);
-          if (stockErr) { setMsg("salesMsg", stockErr.message); return; }
-        } else {
-          if (oldItem) {
-            const { error: restoreErr } = await supabaseClient
-              .from("inventory")
-              .update({ stock: Number(oldItem.stock || 0) + originalQtyNum })
-              .eq("id", oldItem.id);
-            if (restoreErr) { setMsg("salesMsg", restoreErr.message); return; }
-          }
-
-          const { error: deductErr } = await supabaseClient
-            .from("inventory")
-            .update({ stock: Number(item.stock || 0) - Number(line.qty || 0) })
-            .eq("id", item.id);
           if (deductErr) { setMsg("salesMsg", deductErr.message); return; }
+          item.stock = finalStock;
         }
 
-        const { error } = await supabaseClient.from("sales").update({
-          inventory_id: line.productId,
-          product_name: item.name,
-          qty: line.qty,
-          price: line.price,
-          total: line.qty * line.price,
-          cost_twd: Number(item.cost_twd || 0) * line.qty,
-          date,
-          payment_method,
-          payment_code,
-          delivery_method,
-          shipment_status,
-          payment_status,
-          note
-        }).eq("id", editId).select();
+        const { error: deleteOldErr } = await supabaseClient
+          .from("sales")
+          .delete()
+          .eq("order_no", editId);
+        if (deleteOldErr) { setMsg("salesMsg", deleteOldErr.message); return; }
 
-        if (error) { setMsg("salesMsg", error.message); return; }
+        const inserts = items.map(line => {
+          const item = state.inventory.find(x => String(x.id) === String(line.productId));
+          return {
+            order_no: editId,
+            inventory_id: item.id,
+            product_name: item.name,
+            qty: line.qty,
+            price: line.price,
+            total: line.qty * line.price,
+            cost_twd: Number(item.cost_twd || 0) * line.qty,
+            date,
+            payment_method,
+            payment_code,
+            delivery_method,
+            shipment_status,
+            payment_status,
+            note
+          };
+        });
 
-        setMsg("salesMsg", "更新成功", "success");
+        const { error: insertErr } = await supabaseClient.from("sales").insert(inserts).select();
+        if (insertErr) { setMsg("salesMsg", insertErr.message); return; }
+
+        setMsg("salesMsg", "訂單更新成功", "success");
         resetSaleForm(); closeModal("salesModal"); await loadAllData();
         return;
       }
 
+      // 新增模式
       const orderNo = createOrderNo();
       const updates = [];
       const inserts = [];
@@ -1197,7 +1295,7 @@
           setMsg("salesMsg", "請確認每一項商品都有商品、數量與單價");
           return;
         }
-        const item = state.inventory.find(x => x.id === line.productId);
+        const item = state.inventory.find(x => String(x.id) === String(line.productId));
         if (!item) { setMsg("salesMsg", "有商品不存在"); return; }
         if (Number(item.stock || 0) < line.qty) {
           setMsg("salesMsg", `${item.name} 庫存不足，目前可用 ${item.stock}`);
@@ -1236,9 +1334,12 @@
 
     async function editSale(id) {
       const row = state.sales.find(x => x.id === id); if (!row) return;
-      document.getElementById("saleEditId").value = row.id;
-      document.getElementById("saleOriginalQty").value = row.qty || 0;
-      document.getElementById("saleOriginalInventoryId").value = row.inventory_id || "";
+      const orderKey = row.order_no || row.id;
+      const orderRows = state.sales.filter(x => (x.order_no || x.id) === orderKey);
+
+      document.getElementById("saleEditId").value = orderKey;
+      document.getElementById("saleOriginalQty").value = "";
+      document.getElementById("saleOriginalInventoryId").value = "";
       document.getElementById("saleDate").value = row.date || todayStr();
       document.getElementById("salePayment").value = row.payment_method || "匯款";
       document.getElementById("salePaymentCode").value = row.payment_code || "";
@@ -1247,11 +1348,16 @@
       document.getElementById("salePaymentStatus").value = row.payment_status || "未結帳";
       document.getElementById("saleNote").value = row.note || "";
       document.getElementById("saleItems").innerHTML = "";
-      addSaleItemRow({
-        productId: row.inventory_id || "",
-        qty: row.qty || "",
-        price: row.price || ""
+
+      orderRows.forEach(line => {
+        addSaleItemRow({
+          productId: line.inventory_id || "",
+          qty: line.qty || "",
+          price: line.price || ""
+        });
       });
+
+      if (!orderRows.length) addSaleItemRow();
       updateSalePreview(); switchPage("sales"); openModal("salesModal");
     }
 
