@@ -917,9 +917,67 @@
 
     async function deletePurchaseHistory(id) {
       const item = state.purchases.find(x => x.id === id); if (!item) return;
-      if (!confirm(`確定刪除這筆進貨歷史嗎？\n${item.name} / ${fmtDate(item.date)}`)) return;
+      if (!confirm(`確定刪除這筆進貨歷史嗎？\n${item.name} / ${fmtDate(item.date)}\n\n刪除後會同步扣回整合後庫存。`)) return;
+
+      const inventoryItem = state.inventory.find(x =>
+        normalizeText(x.name) === normalizeText(item.name) &&
+        normalizeText(x.category) === normalizeText(item.category)
+      );
+
+      if (inventoryItem) {
+        const currentStock = Number(inventoryItem.stock || 0);
+        const deleteStock = Number(item.stock || 0);
+
+        if (deleteStock > currentStock) {
+          setMsg("inventoryMsg", "這筆歷史數量大於目前整合庫存，無法直接扣回，請先檢查資料。", "error");
+          return;
+        }
+
+        const relatedPurchases = state.purchases.filter(x =>
+          x.id !== id &&
+          normalizeText(x.name) === normalizeText(item.name) &&
+          normalizeText(x.category) === normalizeText(item.category)
+        );
+
+        const remainStock = relatedPurchases.reduce((s, x) => s + Number(x.stock || 0), 0);
+
+        if (remainStock <= 0) {
+          const { error: invDeleteErr } = await supabaseClient.from("inventory").delete().eq("id", inventoryItem.id);
+          if (invDeleteErr) { setMsg("inventoryMsg", invDeleteErr.message); return; }
+        } else {
+          const totalCost = relatedPurchases.reduce((s, x) => s + Number(x.stock || 0) * Number(x.cost_twd || 0), 0);
+          const newAvgCost = totalCost / remainStock;
+
+          const latestPurchase = [...relatedPurchases].sort((a, b) => {
+            const ad = (a.date || "") + (a.created_at || "");
+            const bd = (b.date || "") + (b.created_at || "");
+            return bd.localeCompare(ad);
+          })[0];
+
+          const weightedUnitCostBase = relatedPurchases.reduce((s, x) => s + Number(x.stock || 0) * Number(x.unit_cost || 0), 0) / remainStock;
+          const weightedExchangeRate = relatedPurchases.reduce((s, x) => s + Number(x.stock || 0) * Number(x.exchange_rate || 0), 0) / remainStock;
+
+          const { error: invUpdateErr } = await supabaseClient
+            .from("inventory")
+            .update({
+              date: latestPurchase?.date || inventoryItem.date,
+              stock: remainStock,
+              currency: latestPurchase?.currency || inventoryItem.currency,
+              unit_cost: Number(weightedUnitCostBase.toFixed(4)),
+              exchange_rate: Number(weightedExchangeRate.toFixed(6)),
+              cost_twd: Number(newAvgCost.toFixed(2)),
+              note: latestPurchase?.note || inventoryItem.note
+            })
+            .eq("id", inventoryItem.id);
+
+          if (invUpdateErr) { setMsg("inventoryMsg", invUpdateErr.message); return; }
+        }
+      }
+
       const { error } = await supabaseClient.from("purchase_history").delete().eq("id", id);
       if (error) { setMsg("inventoryMsg", error.message); return; }
+
+      setMsg("inventoryMsg", "進貨歷史已刪除，整合後庫存與成本已同步重算", "success");
       await loadAllData();
     }
 
