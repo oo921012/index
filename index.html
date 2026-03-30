@@ -221,7 +221,7 @@
               <table>
                 <thead>
                   <tr>
-                    <th>日期</th><th>商品</th><th>分類</th><th>幣別</th><th>原始單價</th><th>匯率</th><th>數量</th><th>本批成本(台幣)</th><th>備註</th>
+                    <th>日期</th><th>商品</th><th>分類</th><th>幣別</th><th>原始單價</th><th>匯率</th><th>數量</th><th>本批成本(台幣)</th><th>備註</th><th>操作</th>
                   </tr>
                 </thead>
                 <tbody id="purchaseHistoryBody"></tbody>
@@ -676,8 +676,11 @@
             <td>${row.stock ?? 0}</td>
             <td>${nt(Number(row.stock || 0) * Number(row.cost_twd || 0))}</td>
             <td>${row.note ?? ""}</td>
+            <td>
+              <button class="btn-danger btn-small" onclick="deletePurchaseHistory('${row.id}')">刪除</button>
+            </td>
           </tr>
-        `).join("") || `<tr><td colspan="9">目前沒有進貨歷史</td></tr>`;
+        `).join("") || `<tr><td colspan="10">目前沒有進貨歷史</td></tr>`;
     }
 
     function renderSales() {
@@ -911,6 +914,15 @@
       if (error) { setMsg("inventoryMsg", error.message); return; }
       await loadAllData();
     }
+
+    async function deletePurchaseHistory(id) {
+      const item = state.purchases.find(x => x.id === id); if (!item) return;
+      if (!confirm(`確定刪除這筆進貨歷史嗎？\n${item.name} / ${fmtDate(item.date)}`)) return;
+      const { error } = await supabaseClient.from("purchase_history").delete().eq("id", id);
+      if (error) { setMsg("inventoryMsg", error.message); return; }
+      await loadAllData();
+    }
+
 
     function resetSaleForm() {
       document.getElementById("saleEditId").value = "";
@@ -1157,6 +1169,7 @@
     resetInventoryForm(); resetSaleForm(); resetExpenseForm();
     window.editInventory = editInventory;
     window.deleteInventory = deleteInventory;
+    window.deletePurchaseHistory = deletePurchaseHistory;
     window.editSale = editSale;
     window.deleteSale = deleteSale;
     window.editExpense = editExpense;
