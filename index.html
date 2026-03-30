@@ -27,7 +27,7 @@
     .page-title { font-size: 30px; font-weight: 800; margin: 0; }
     .muted { color: #6b7280; font-size: 14px; }
     .grid { display: grid; gap: 18px; }
-    .grid.cols-4 { grid-template-columns: repeat(5, 1fr); }
+    .grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
     .grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
     .grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
     .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 22px; padding: 20px; box-shadow: 0 10px 30px rgba(17,24,39,0.05); }
@@ -49,6 +49,7 @@
     .btn-secondary { background: #e5e7eb; color: #111827; }
     .btn-danger { background: #fee2e2; color: #991b1b; }
     .btn-small { width: auto; padding: 8px 12px; border-radius: 10px; font-size: 13px; margin-right: 6px; }
+    .toggle-btn.active { background:#111827; color:#fff; }
     .table-wrap { overflow: auto; }
     table { width: 100%; border-collapse: collapse; min-width: 760px; }
     th, td { padding: 12px 10px; border-bottom: 1px solid #e5e7eb; text-align: left; font-size: 14px; vertical-align: top; }
@@ -62,7 +63,7 @@
     .toolbar input { max-width: 280px; }
     .warning-box { background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412; padding: 14px 16px; border-radius: 16px; }
 
-    .action-buttons { display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+    .action-buttons { display:none; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
     .modal-backdrop {
       position: fixed; inset: 0; background: rgba(15,23,42,.55);
       display: none; align-items: center; justify-content: center; padding: 20px; z-index: 2000;
@@ -153,7 +154,12 @@
           <h2 class="page-title" id="pageTitle">Dashboard</h2>
           <div class="muted">Supabase｜日期＋多幣別＋關鍵字提醒＋平均成本自動合併</div>
         </div>
-        <button class="btn-secondary" id="refreshBtn" style="max-width:160px;">重新整理資料</button>
+        <div class="action-buttons">
+          <button class="btn-primary" id="openInventoryModalBtn" style="width:auto;">新增進貨</button>
+          <button class="btn-primary" id="openSalesModalBtn" style="width:auto;">新增銷售</button>
+          <button class="btn-primary" id="openExpensesModalBtn" style="width:auto;">新增支出</button>
+          <button class="btn-secondary" id="refreshBtn" style="width:auto;">重新整理資料</button>
+        </div>
       </div>
 
       <section id="page-dashboard" class="page">
@@ -170,7 +176,7 @@
         <div class="grid cols-2">
           <div class="card">
             <h3 class="section-title">進貨操作</h3>
-            <div class="notice">在這頁只能新增進貨。</div>
+            <div class="notice">這一頁只能新增進貨。</div>
             <div style="margin-top:12px;">
               <button class="btn-primary" id="openInventoryModalBtn2" style="width:auto;">新增進貨</button>
             </div>
@@ -179,10 +185,11 @@
           <div class="card">
             <h3 class="section-title">庫存顯示切換</h3>
             <div class="toolbar">
-              <button class="btn-secondary btn-small" id="showMergedInventoryBtn" type="button">整合後庫存</button>
-              <button class="btn-secondary btn-small" id="showPurchaseHistoryBtn" type="button">進貨歷史</button>
+              <button class="btn-secondary btn-small toggle-btn active" id="showMergedInventoryBtn" type="button">整合後庫存</button>
+              <button class="btn-secondary btn-small toggle-btn" id="showPurchaseHistoryBtn" type="button">進貨歷史</button>
               <input id="inventorySearch" placeholder="搜尋商品名稱 / 分類" />
             </div>
+
             <div class="table-wrap" id="mergedInventoryWrap">
               <table>
                 <thead>
@@ -193,6 +200,7 @@
                 <tbody id="inventoryBody"></tbody>
               </table>
             </div>
+
             <div class="table-wrap hidden" id="purchaseHistoryWrap">
               <table>
                 <thead>
@@ -211,7 +219,7 @@
         <div class="grid cols-2">
           <div class="card">
             <h3 class="section-title">銷售操作</h3>
-            <div class="notice">在這頁只能新增銷售。</div>
+            <div class="notice">這一頁只能新增銷售。</div>
             <div style="margin-top:12px;">
               <button class="btn-primary" id="openSalesModalBtn2" style="width:auto;">新增銷售</button>
             </div>
@@ -241,7 +249,7 @@
         <div class="grid cols-2">
           <div class="card">
             <h3 class="section-title">支出操作</h3>
-            <div class="notice">在這頁只能新增支出。</div>
+            <div class="notice">這一頁只能新增支出。</div>
             <div style="margin-top:12px;">
               <button class="btn-primary" id="openExpensesModalBtn2" style="width:auto;">新增支出</button>
             </div>
@@ -429,19 +437,22 @@
         dashboard:"損益報表", inventory:"多幣別進貨", sales:"銷售紀錄", expenses:"營運支出"
       }[page] || "Dashboard";
 
-      const mobile = window.innerWidth <= 700;
       const fabWrap = document.getElementById("fabWrap");
-      if (mobile && page !== "dashboard") {
+      if (window.innerWidth <= 700 && page !== "dashboard") {
         fabWrap.classList.add("show");
-      } else if (!mobile) {
-        fabWrap.classList.remove("show");
       } else {
         fabWrap.classList.remove("show");
       }
       toggleFab(false);
 
-      document.getElementById("mergedInventoryWrap")?.classList.remove("hidden");
-      document.getElementById("purchaseHistoryWrap")?.classList.add("hidden");
+      const merged = document.getElementById("mergedInventoryWrap");
+      const history = document.getElementById("purchaseHistoryWrap");
+      if (merged && history) {
+        merged.classList.remove("hidden");
+        history.classList.add("hidden");
+        document.getElementById("showMergedInventoryBtn")?.classList.add("active");
+        document.getElementById("showPurchaseHistoryBtn")?.classList.remove("active");
+      }
     }
 
     function calculateInventoryTwd() {
@@ -449,26 +460,26 @@
     }
 
     function updateSuggestions() {
-      const nameSource = [...state.inventory, ...state.purchases];
-      state.nameSuggestions = [...new Set(nameSource.map(x => (x.name || "").trim()).filter(Boolean))].sort();
-      state.categorySuggestions = [...new Set(nameSource.map(x => (x.category || "").trim()).filter(Boolean))].sort();
+      const source = [...state.inventory, ...state.purchases];
+      state.nameSuggestions = [...new Set(source.map(x => (x.name || "").trim()).filter(Boolean))].sort();
+      state.categorySuggestions = [...new Set(source.map(x => (x.category || "").trim()).filter(Boolean))].sort();
 
-      document.getElementById("nameSuggestions").innerHTML =
-        state.nameSuggestions.map(x => `<option value="${x}"></option>`).join("");
-      document.getElementById("categorySuggestions").innerHTML =
-        state.categorySuggestions.map(x => `<option value="${x}"></option>`).join("");
+      refreshNameSuggestionList();
+      refreshCategorySuggestionList();
     }
 
     function refreshNameSuggestionList() {
-      const keyword = (document.getElementById("invName").value || "").trim().toLowerCase();
-      const rows = (state.nameSuggestions || []).filter(x => !keyword || x.toLowerCase().includes(keyword)).slice(0, 10);
-      document.getElementById("nameSuggestions").innerHTML = rows.map(x => `<option value="${x}"></option>`).join("");
+      const keyword = (document.getElementById("invName")?.value || "").trim().toLowerCase();
+      const rows = (state.nameSuggestions || []).filter(x => !keyword || x.toLowerCase().includes(keyword)).slice(0, 12);
+      const el = document.getElementById("nameSuggestions");
+      if (el) el.innerHTML = rows.map(x => `<option value="${x}"></option>`).join("");
     }
 
     function refreshCategorySuggestionList() {
-      const keyword = (document.getElementById("invCategory").value || "").trim().toLowerCase();
-      const rows = (state.categorySuggestions || []).filter(x => !keyword || x.toLowerCase().includes(keyword)).slice(0, 10);
-      document.getElementById("categorySuggestions").innerHTML = rows.map(x => `<option value="${x}"></option>`).join("");
+      const keyword = (document.getElementById("invCategory")?.value || "").trim().toLowerCase();
+      const rows = (state.categorySuggestions || []).filter(x => !keyword || x.toLowerCase().includes(keyword)).slice(0, 12);
+      const el = document.getElementById("categorySuggestions");
+      if (el) el.innerHTML = rows.map(x => `<option value="${x}"></option>`).join("");
     }
 
     function renderDashboard() {
@@ -534,7 +545,6 @@
       document.getElementById("purchaseHistoryBody").innerHTML =
         rows.map(row => `
           <tr>
-            <td>${fmtDate(row.date)}</td>
             <td>${row.name ?? ""}</td>
             <td>${row.category ?? ""}</td>
             <td><span class="pill">${row.currency ?? "TWD"}</span></td>
@@ -976,10 +986,14 @@
     document.getElementById("showMergedInventoryBtn").addEventListener("click", () => {
       document.getElementById("mergedInventoryWrap").classList.remove("hidden");
       document.getElementById("purchaseHistoryWrap").classList.add("hidden");
+      document.getElementById("showMergedInventoryBtn").classList.add("active");
+      document.getElementById("showPurchaseHistoryBtn").classList.remove("active");
     });
     document.getElementById("showPurchaseHistoryBtn").addEventListener("click", () => {
       document.getElementById("mergedInventoryWrap").classList.add("hidden");
       document.getElementById("purchaseHistoryWrap").classList.remove("hidden");
+      document.getElementById("showMergedInventoryBtn").classList.remove("active");
+      document.getElementById("showPurchaseHistoryBtn").classList.add("active");
     });
     document.getElementById("cancelInventoryEditBtn").addEventListener("click", () => { resetInventoryForm(); closeModal("inventoryModal"); });
     document.getElementById("cancelSaleEditBtn").addEventListener("click", () => { resetSaleForm(); closeModal("salesModal"); });
