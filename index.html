@@ -579,29 +579,34 @@
 
     function downloadWorkbook(filename, sheets) {
       const wb = XLSX.utils.book_new();
+
       for (const [sheetName, data] of Object.entries(sheets)) {
         const ws = XLSX.utils.json_to_sheet(data);
 
         if (data.length > 0) {
           const headers = Object.keys(data[0]);
-          ws["!cols"] = headers.map((header) => {
-            let maxLen = String(header || "").length;
-            data.forEach((row) => {
-              const cell = row[header];
-              const len = String(cell ?? "").length;
-              if (len > maxLen) maxLen = len;
-            });
 
-            // 商品 / 備註 / 訂單編號欄位給更寬
-            if (header.includes("商品")) return { wch: Math.min(Math.max(maxLen + 4, 24), 50) };
-            if (header.includes("備註")) return { wch: Math.min(Math.max(maxLen + 4, 20), 60) };
-            if (header.includes("訂單")) return { wch: Math.min(Math.max(maxLen + 4, 18), 28) };
-            return { wch: Math.min(Math.max(maxLen + 2, 12), 24) };
+          ws["!cols"] = headers.map((header) => {
+            if (header.includes("商品")) return { wch: 40 };
+            if (header.includes("備註")) return { wch: 50 };
+            if (header.includes("訂單")) return { wch: 24 };
+            return { wch: 18 };
+          });
+
+          Object.keys(ws).forEach((cell) => {
+            if (cell[0] === "!") return;
+            ws[cell].s = {
+              alignment: {
+                wrapText: true,
+                vertical: "top"
+              }
+            };
           });
         }
 
         XLSX.utils.book_append_sheet(wb, ws, sheetName);
       }
+
       XLSX.writeFile(wb, filename);
     }
 
