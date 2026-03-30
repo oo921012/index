@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Inventory System Pro Max</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; background: #f3f6fb; color: #111827; }
@@ -109,7 +110,7 @@
       .main { padding: 16px; }
       .auth-card { padding: 20px; }
     }
-      /* 只隱藏各頁左側操作卡片，不影響功能 */
+     /* 只隱藏各頁左側操作卡片，不影響功能 */
      #page-inventory .grid.cols-2 > .card:first-child,
      #page-sales .grid.cols-2 > .card:first-child,
      #page-expenses .grid.cols-2 > .card:first-child {
@@ -167,7 +168,13 @@
           <h2 class="page-title" id="pageTitle">Dashboard</h2>
           <div class="muted">Supabase｜日期＋多幣別＋關鍵字提醒＋平均成本自動合併</div>
         </div>
-        <button class="btn-secondary" id="refreshBtn" style="max-width:160px;">重新整理資料</button>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
+          <button class="btn-secondary" id="exportInventoryBtn" style="width:auto;">匯出整合庫存</button>
+          <button class="btn-secondary" id="exportPurchaseBtn" style="width:auto;">匯出進貨歷史</button>
+          <button class="btn-secondary" id="exportSalesBtn" style="width:auto;">匯出銷售</button>
+          <button class="btn-secondary" id="exportExpensesBtn" style="width:auto;">匯出支出</button>
+          <button class="btn-secondary" id="refreshBtn" style="width:auto;">重新整理資料</button>
+        </div>
       </div>
 
       <section id="page-dashboard" class="page">
@@ -491,6 +498,113 @@
       if (el) el.innerHTML = rows.map(x => `<option value="${x}"></option>`).join("");
     }
 
+
+    function extractSizeInfo(name) {
+      const raw = (name || "").trim();
+      const normalized = raw.toUpperCase().replace(/\s+/g, "");
+      const patterns = [
+        [/([_-]?3XL)$/, "3XL", 8],
+        [/([_-]?2XL)$/, "2XL", 7],
+        [/([_-]?XXL)$/, "XXL", 7],
+        [/([_-]?XL)$/, "XL", 6],
+        [/([_-]?L)$/, "L", 5],
+        [/([_-]?M)$/, "M", 4],
+        [/([_-]?S)$/, "S", 3],
+        [/([_-]?XS)$/, "XS", 2],
+        [/([_-]?XXS)$/, "XXS", 1],
+      ];
+
+      for (const [pattern, label, order] of patterns) {
+        if (pattern.test(normalized)) {
+          const base = raw.replace(/[\s_-]*(XXS|XS|S|M|L|XL|XXL|2XL|3XL)$/i, "").trim();
+          return { baseName: normalizeText(base), sizeLabel: label, sizeOrder: order };
+        }
+      }
+      return { baseName: normalizeText(raw), sizeLabel: "", sizeOrder: 999 };
+    }
+
+    function sortInventoryRows(rows) {
+      return [...rows].sort((a, b) => {
+        const aInfo = extractSizeInfo(a.name);
+        const bInfo = extractSizeInfo(b.name);
+        return (
+          aInfo.baseName.localeCompare(bInfo.baseName) ||
+          normalizeText(a.category).localeCompare(normalizeText(b.category)) ||
+          aInfo.sizeOrder - bInfo.sizeOrder ||
+          normalizeText(a.name).localeCompare(normalizeText(b.name))
+        );
+      });
+    }
+
+    function downloadWorkbook(filename, sheets) {
+      const wb = XLSX.utils.book_new();
+      for (const [sheetName, data] of Object.entries(sheets)) {
+        const ws = XLSX.utils.json_to_sheet(data);
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+      }
+      XLSX.writeFile(wb, filename);
+    }
+
+    function exportInventoryExcel() {
+      const rows = sortInventoryRows(state.inventory).map(row => ({
+        日期: row.date || "",
+        商品: row.name || "",
+        分類: row.category || "",
+        庫存: Number(row.stock || 0),
+        幣別: row.currency || "TWD",
+        原始單價: Number(row.unit_cost || 0),
+        匯率: Number(row.exchange_rate || 0),
+        平均成本台幣: Number(row.cost_twd || 0),
+        庫存價值台幣: Number(row.stock || 0) * Number(row.cost_twd || 0),
+        備註: row.note || ""
+      }));
+      downloadWorkbook("整合庫存.xlsx", { 整合庫存: rows });
+    }
+
+    function exportPurchaseExcel() {
+      const rows = [...state.purchases].map(row => ({
+        日期: row.date || "",
+        商品: row.name || "",
+        分類: row.category || "",
+        數量: Number(row.stock || 0),
+        幣別: row.currency || "TWD",
+        原始單價: Number(row.unit_cost || 0),
+        匯率: Number(row.exchange_rate || 0),
+        成本台幣: Number(row.cost_twd || 0),
+        本批總成本台幣: Number(row.stock || 0) * Number(row.cost_twd || 0),
+        備註: row.note || ""
+      }));
+      downloadWorkbook("進貨歷史.xlsx", { 進貨歷史: rows });
+    }
+
+    function exportSalesExcel() {
+      const rows = [...state.sales].map(row => ({
+        日期: row.date || "",
+        商品: row.product_name || "",
+        數量: Number(row.qty || 0),
+        單價台幣: Number(row.price || 0),
+        總額台幣: Number(row.total || 0),
+        成本台幣: Number(row.cost_twd || 0),
+        毛利台幣: Number(row.total || 0) - Number(row.cost_twd || 0),
+        交易方式: row.payment_method || "",
+        匯款後五碼: row.payment_code || "",
+        物流方式: row.delivery_method || "",
+        備註: row.note || ""
+      }));
+      downloadWorkbook("銷售紀錄.xlsx", { 銷售紀錄: rows });
+    }
+
+    function exportExpensesExcel() {
+      const rows = [...state.expenses].map(row => ({
+        日期: row.date || "",
+        類別: row.category || "",
+        金額台幣: Number(row.amount || 0),
+        備註: row.note || ""
+      }));
+      downloadWorkbook("營運支出.xlsx", { 營運支出: rows });
+    }
+
+
     function renderDashboard() {
       const revenue = state.sales.reduce((sum, x) => sum + Number(x.total || 0), 0);
       const cost = state.sales.reduce((sum, x) => sum + Number(x.cost_twd || 0), 0);
@@ -507,9 +621,7 @@
 
     function renderInventory() {
       const keyword = (document.getElementById("inventorySearch").value || "").trim().toLowerCase();
-      const rows = [...state.inventory]
-        .sort((a,b) => normalizeText(a.name).localeCompare(normalizeText(b.name)) || normalizeText(a.category).localeCompare(normalizeText(b.category)))
-        .filter(row => {
+      const rows = sortInventoryRows(state.inventory).filter(row => {
           if (!keyword) return true;
           return (row.name || "").toLowerCase().includes(keyword) || (row.category || "").toLowerCase().includes(keyword);
         });
@@ -979,6 +1091,10 @@
     document.getElementById("addSaleBtn").addEventListener("click", addSale);
     document.getElementById("addExpenseBtn").addEventListener("click", addExpense);
     document.getElementById("refreshBtn").addEventListener("click", loadAllData);
+    document.getElementById("exportInventoryBtn").addEventListener("click", exportInventoryExcel);
+    document.getElementById("exportPurchaseBtn").addEventListener("click", exportPurchaseExcel);
+    document.getElementById("exportSalesBtn").addEventListener("click", exportSalesExcel);
+    document.getElementById("exportExpensesBtn").addEventListener("click", exportExpensesExcel);
     document.getElementById("openInventoryModalBtn2").addEventListener("click", () => { resetInventoryForm(); openModal("inventoryModal"); });
     document.getElementById("openSalesModalBtn2").addEventListener("click", () => { resetSaleForm(); openModal("salesModal"); });
     document.getElementById("openExpensesModalBtn2").addEventListener("click", () => { resetExpenseForm(); openModal("expensesModal"); });
