@@ -1015,7 +1015,7 @@
 
     async function deletePurchaseHistory(id) {
       const item = state.purchases.find(x => x.id === id); if (!item) return;
-      if (!confirm(`確定刪除這筆進貨歷史嗎？\n${item.name} / ${fmtDate(item.date)}\n\n刪除後會同步扣回整合後庫存。`)) return;
+      if (!confirm(`確定刪除這筆進貨歷史嗎？\n${item.name} / ${fmtDate(item.date)}\n\n刪除後會同步重算整合後庫存。`)) return;
 
       const inventoryItem = state.inventory.find(x =>
         normalizeText(x.name) === normalizeText(item.name) &&
@@ -1034,15 +1034,22 @@
 
         if (remainErr) { setMsg("inventoryMsg", remainErr.message); return; }
 
-        const relatedPurchases = dbRemaining || [];
-        const remainStock = relatedPurchases.reduce((s, x) => s + Number(x.stock || 0), 0);
+        const soldQty = state.sales
+          .filter(x =>
+            normalizeText(x.product_name) === normalizeText(item.name)
+          )
+          .reduce((s, x) => s + Number(x.qty || 0), 0);
 
-        if (remainStock <= 0) {
+        const relatedPurchases = dbRemaining || [];
+        const totalPurchasedQty = relatedPurchases.reduce((s, x) => s + Number(x.stock || 0), 0);
+        const remainStock = totalPurchasedQty - soldQty;
+
+        if (relatedPurchases.length === 0 || remainStock <= 0) {
           const { error: invDeleteErr } = await supabaseClient.from("inventory").delete().eq("id", inventoryItem.id);
           if (invDeleteErr) { setMsg("inventoryMsg", invDeleteErr.message); return; }
         } else {
           const totalCost = relatedPurchases.reduce((s, x) => s + Number(x.stock || 0) * Number(x.cost_twd || 0), 0);
-          const newAvgCost = totalCost / remainStock;
+          const avgPurchaseCost = totalPurchasedQty > 0 ? totalCost / totalPurchasedQty : 0;
 
           const latestPurchase = [...relatedPurchases].sort((a, b) => {
             const ad = `${a.date || ""}${a.created_at || ""}`;
@@ -1050,8 +1057,12 @@
             return bd.localeCompare(ad);
           })[0];
 
-          const weightedUnitCostBase = relatedPurchases.reduce((s, x) => s + Number(x.stock || 0) * Number(x.unit_cost || 0), 0) / remainStock;
-          const weightedExchangeRate = relatedPurchases.reduce((s, x) => s + Number(x.stock || 0) * Number(x.exchange_rate || 0), 0) / remainStock;
+          const weightedUnitCostBase = totalPurchasedQty > 0
+            ? relatedPurchases.reduce((s, x) => s + Number(x.stock || 0) * Number(x.unit_cost || 0), 0) / totalPurchasedQty
+            : 0;
+          const weightedExchangeRate = totalPurchasedQty > 0
+            ? relatedPurchases.reduce((s, x) => s + Number(x.stock || 0) * Number(x.exchange_rate || 0), 0) / totalPurchasedQty
+            : 1;
           const mergedNote = relatedPurchases.map(x => (x.note || "").trim()).filter(Boolean).join(" | ");
 
           const { error: invUpdateErr } = await supabaseClient
@@ -1062,7 +1073,7 @@
               currency: latestPurchase?.currency || inventoryItem.currency,
               unit_cost: Number(weightedUnitCostBase.toFixed(4)),
               exchange_rate: Number(weightedExchangeRate.toFixed(6)),
-              cost_twd: Number(newAvgCost.toFixed(2)),
+              cost_twd: Number(avgPurchaseCost.toFixed(2)),
               note: mergedNote || inventoryItem.note
             })
             .eq("id", inventoryItem.id);
@@ -1071,7 +1082,7 @@
         }
       }
 
-      setMsg("inventoryMsg", "進貨歷史已刪除，整合後庫存與成本已重新計算", "success");
+      setMsg("inventoryMsg", "進貨歷史已刪除，整合後庫存已依剩餘進貨與已售數量重算", "success");
       await loadAllData();
     }
 
@@ -1119,18 +1130,40 @@
         const item = state.inventory.find(x => x.id === line.productId);
         if (!item) { setMsg("salesMsg", "找不到商品"); return; }
 
-        let availableStock = Number(item.stock);
-        if (originalInventoryId === line.productId) availableStock += originalQty;
-        if (availableStock < line.qty) { setMsg("salesMsg", `庫存不足，目前可用 ${availableStock}`); return; }
+        const oldItem = state.inventory.find(x => x.id === originalInventoryId);
+        const originalQtyNum = Number(originalQty || 0);
+        let availableStock = Number(item.stock || 0);
 
-        if (originalInventoryId) {
-          const oldItem = state.inventory.find(x => x.id === originalInventoryId);
-          if (oldItem) {
-            await supabaseClient.from("inventory").update({ stock: Number(oldItem.stock) + originalQty }).eq("id", oldItem.id);
-          }
+        if (originalInventoryId === line.productId) {
+          availableStock += originalQtyNum;
+        }
+        if (availableStock < line.qty) {
+          setMsg("salesMsg", `庫存不足，目前可用 ${availableStock}`);
+          return;
         }
 
-        await supabaseClient.from("inventory").update({ stock: Number(item.stock) - line.qty }).eq("id", item.id);
+        if (originalInventoryId === line.productId) {
+          const finalStock = Number(item.stock || 0) + originalQtyNum - Number(line.qty || 0);
+          const { error: stockErr } = await supabaseClient
+            .from("inventory")
+            .update({ stock: finalStock })
+            .eq("id", item.id);
+          if (stockErr) { setMsg("salesMsg", stockErr.message); return; }
+        } else {
+          if (oldItem) {
+            const { error: restoreErr } = await supabaseClient
+              .from("inventory")
+              .update({ stock: Number(oldItem.stock || 0) + originalQtyNum })
+              .eq("id", oldItem.id);
+            if (restoreErr) { setMsg("salesMsg", restoreErr.message); return; }
+          }
+
+          const { error: deductErr } = await supabaseClient
+            .from("inventory")
+            .update({ stock: Number(item.stock || 0) - Number(line.qty || 0) })
+            .eq("id", item.id);
+          if (deductErr) { setMsg("salesMsg", deductErr.message); return; }
+        }
 
         const { error } = await supabaseClient.from("sales").update({
           inventory_id: line.productId,
