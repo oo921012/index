@@ -49,9 +49,8 @@
     .btn-secondary { background: #e5e7eb; color: #111827; }
     .btn-danger { background: #fee2e2; color: #991b1b; }
     .btn-small { width: auto; padding: 8px 12px; border-radius: 10px; font-size: 13px; margin-right: 6px; }
-    .toggle-btn.active { background:#111827; color:#fff; }
     .table-wrap { overflow: auto; }
-    table { width: 100%; border-collapse: collapse; min-width: 760px; }
+    table { width: 100%; border-collapse: collapse; min-width: 900px; }
     th, td { padding: 12px 10px; border-bottom: 1px solid #e5e7eb; text-align: left; font-size: 14px; vertical-align: top; }
     th { color: #6b7280; font-weight: 700; background: #f9fafb; position: sticky; top: 0; z-index: 1; }
     .pill { display: inline-block; padding: 6px 10px; border-radius: 999px; background: #eef2ff; color: #3730a3; font-size: 12px; font-weight: 700; }
@@ -63,7 +62,7 @@
     .toolbar input { max-width: 280px; }
     .warning-box { background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412; padding: 14px 16px; border-radius: 16px; }
 
-    .action-buttons { display:none; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+    .action-buttons { display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
     .modal-backdrop {
       position: fixed; inset: 0; background: rgba(15,23,42,.55);
       display: none; align-items: center; justify-content: center; padding: 20px; z-index: 2000;
@@ -154,29 +153,53 @@
           <h2 class="page-title" id="pageTitle">Dashboard</h2>
           <div class="muted">Supabase｜日期＋多幣別＋關鍵字提醒＋平均成本自動合併</div>
         </div>
-        <button class="btn-secondary" id="refreshBtn" style="max-width:160px;">重新整理資料</button>
+        <div class="action-buttons">
+          <button class="btn-primary" id="openInventoryModalBtn" style="width:auto;">新增進貨</button>
+          <button class="btn-primary" id="openSalesModalBtn" style="width:auto;">新增銷售</button>
+          <button class="btn-primary" id="openExpensesModalBtn" style="width:auto;">新增支出</button>
+          <button class="btn-secondary" id="refreshBtn" style="width:auto;">重新整理資料</button>
+        </div>
       </div>
 
       <section id="page-dashboard" class="page">
-        <div class="grid">
-          <div class="card"><div class="stat-label">總銷售額</div><div class="stat-value" id="statRevenue">NT$ 0</div></div>
-          <div class="card"><div class="stat-label">總成本</div><div class="stat-value" id="statCost">NT$ 0</div></div>
-          <div class="card"><div class="stat-label">總支出</div><div class="stat-value" id="statExpense">NT$ 0</div></div>
-          <div class="card"><div class="stat-label">毛利</div><div class="stat-value" id="statGrossProfit">NT$ 0</div></div>
-          <div class="card"><div class="stat-label">淨利</div><div class="stat-value" id="statProfit">NT$ 0</div></div>
+        <div class="grid cols-4">
+          <div class="card"><div class="stat-label">總營收</div><div class="stat-value" id="statRevenue">NT$ 0</div><div class="stat-sub">全部銷售總額</div></div>
+          <div class="card"><div class="stat-label">商品成本</div><div class="stat-value" id="statCost">NT$ 0</div><div class="stat-sub">已售商品成本</div></div>
+          <div class="card"><div class="stat-label">營運支出</div><div class="stat-value" id="statExpense">NT$ 0</div><div class="stat-sub">全部支出</div></div>
+          <div class="card"><div class="stat-label">淨利</div><div class="stat-value" id="statProfit">NT$ 0</div><div class="stat-sub">營收 - 成本 - 支出</div></div>
+        </div>
+
+        <div class="grid cols-3" style="margin-top:18px;">
+          <div class="card">
+            <h3 class="section-title">庫存總覽</h3>
+            <div class="stat-label">現有商品種類</div>
+            <div class="stat-value" id="statSkuCount">0</div>
+            <div class="stat-sub" id="statInventoryValue">庫存價值：NT$ 0</div>
+            <div style="margin-top:16px;" id="lowStockBox"></div>
+          </div>
+          <div class="card">
+            <h3 class="section-title">最近銷售</h3>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>日期</th><th>商品</th><th>數量</th><th>總額</th></tr></thead>
+                <tbody id="dashboardSalesBody"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card">
+            <h3 class="section-title">最近支出</h3>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>日期</th><th>類別</th><th>金額</th><th>備註</th></tr></thead>
+                <tbody id="dashboardExpensesBody"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </section>
 
       <section id="page-inventory" class="page hidden">
-        <div class="grid cols-2">
-          <div class="card">
-            <h3 class="section-title">進貨操作</h3>
-            <div class="notice">這一頁只能新增進貨。</div>
-            <div style="margin-top:12px;">
-              <button class="btn-primary" id="openInventoryModalBtn2" style="width:auto;">新增進貨</button>
-            </div>
-          </div>
-
+        <div class="grid">
           <div class="card">
             <h3 class="section-title">庫存顯示切換</h3>
             <div class="toolbar">
@@ -185,18 +208,16 @@
               <input id="inventorySearch" placeholder="搜尋商品名稱 / 分類" />
               <input id="purchaseHistorySearch" placeholder="搜尋進貨歷史" />
             </div>
-
             <div class="table-wrap" id="mergedInventoryWrap">
               <table>
                 <thead>
                   <tr>
-                    <th>商品</th><th>分類</th><th>庫存</th><th>幣別</th><th>原始單價</th><th>匯率</th><th>平均成本(台幣)</th><th>庫存價值</th><th>備註</th><th>操作</th>
+                    <th>日期</th><th>商品</th><th>分類</th><th>庫存</th><th>幣別</th><th>原始單價</th><th>匯率</th><th>平均成本(台幣)</th><th>庫存價值</th><th>備註</th><th>操作</th>
                   </tr>
                 </thead>
                 <tbody id="inventoryBody"></tbody>
               </table>
             </div>
-
             <div class="table-wrap hidden" id="purchaseHistoryWrap">
               <table>
                 <thead>
@@ -212,15 +233,7 @@
       </section>
 
       <section id="page-sales" class="page hidden">
-        <div class="grid cols-2">
-          <div class="card">
-            <h3 class="section-title">銷售操作</h3>
-            <div class="notice">這一頁只能新增銷售。</div>
-            <div style="margin-top:12px;">
-              <button class="btn-primary" id="openSalesModalBtn2" style="width:auto;">新增銷售</button>
-            </div>
-          </div>
-
+        <div class="grid">
           <div class="card">
             <h3 class="section-title">銷售紀錄</h3>
             <div class="toolbar">
@@ -242,15 +255,7 @@
       </section>
 
       <section id="page-expenses" class="page hidden">
-        <div class="grid cols-2">
-          <div class="card">
-            <h3 class="section-title">支出操作</h3>
-            <div class="notice">這一頁只能新增支出。</div>
-            <div style="margin-top:12px;">
-              <button class="btn-primary" id="openExpensesModalBtn2" style="width:auto;">新增支出</button>
-            </div>
-          </div>
-
+        <div class="grid">
           <div class="card">
             <h3 class="section-title">支出紀錄</h3>
             <div class="toolbar">
@@ -258,7 +263,9 @@
             </div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>日期</th><th>類別</th><th>金額</th><th>備註</th><th>操作</th></tr></thead>
+                <thead>
+                  <tr><th>日期</th><th>類別</th><th>金額</th><th>備註</th><th>操作</th></tr>
+                </thead>
                 <tbody id="expensesBody"></tbody>
               </table>
             </div>
@@ -430,25 +437,8 @@
       document.getElementById(`page-${page}`).classList.remove("hidden");
       document.querySelectorAll(".nav-btn").forEach(btn => btn.classList.toggle("active", btn.dataset.page === page));
       document.getElementById("pageTitle").textContent = {
-        dashboard:"損益報表", inventory:"多幣別進貨", sales:"銷售紀錄", expenses:"營運支出"
+        dashboard:"Dashboard", inventory:"多幣別進貨", sales:"銷售紀錄", expenses:"營運支出"
       }[page] || "Dashboard";
-
-      const fabWrap = document.getElementById("fabWrap");
-      if (window.innerWidth <= 700 && page !== "dashboard") {
-        fabWrap.classList.add("show");
-      } else {
-        fabWrap.classList.remove("show");
-      }
-      toggleFab(false);
-
-      const merged = document.getElementById("mergedInventoryWrap");
-      const history = document.getElementById("purchaseHistoryWrap");
-      if (merged && history) {
-        merged.classList.remove("hidden");
-        history.classList.add("hidden");
-        document.getElementById("showMergedInventoryBtn")?.classList.add("active");
-        document.getElementById("showPurchaseHistoryBtn")?.classList.remove("active");
-      }
     }
 
     function calculateInventoryTwd() {
@@ -456,40 +446,44 @@
     }
 
     function updateSuggestions() {
-      const source = [...state.inventory, ...state.purchases];
-      state.nameSuggestions = [...new Set(source.map(x => (x.name || "").trim()).filter(Boolean))].sort();
-      state.categorySuggestions = [...new Set(source.map(x => (x.category || "").trim()).filter(Boolean))].sort();
+      const nameSource = [...state.inventory, ...state.purchases];
+      const names = [...new Set(nameSource.map(x => (x.name || "").trim()).filter(Boolean))].sort();
+      const categories = [...new Set(nameSource.map(x => (x.category || "").trim()).filter(Boolean))].sort();
 
-      refreshNameSuggestionList();
-      refreshCategorySuggestionList();
-    }
-
-    function refreshNameSuggestionList() {
-      const keyword = (document.getElementById("invName")?.value || "").trim().toLowerCase();
-      const rows = (state.nameSuggestions || []).filter(x => !keyword || x.toLowerCase().includes(keyword)).slice(0, 12);
-      const el = document.getElementById("nameSuggestions");
-      if (el) el.innerHTML = rows.map(x => `<option value="${x}"></option>`).join("");
-    }
-
-    function refreshCategorySuggestionList() {
-      const keyword = (document.getElementById("invCategory")?.value || "").trim().toLowerCase();
-      const rows = (state.categorySuggestions || []).filter(x => !keyword || x.toLowerCase().includes(keyword)).slice(0, 12);
-      const el = document.getElementById("categorySuggestions");
-      if (el) el.innerHTML = rows.map(x => `<option value="${x}"></option>`).join("");
+      document.getElementById("nameSuggestions").innerHTML =
+        names.map(x => `<option value="${x}"></option>`).join("");
+      document.getElementById("categorySuggestions").innerHTML =
+        categories.map(x => `<option value="${x}"></option>`).join("");
     }
 
     function renderDashboard() {
       const revenue = state.sales.reduce((sum, x) => sum + Number(x.total || 0), 0);
       const cost = state.sales.reduce((sum, x) => sum + Number(x.cost_twd || 0), 0);
       const expense = state.expenses.reduce((sum, x) => sum + Number(x.amount || 0), 0);
-      const grossProfit = revenue - cost;
-      const profit = grossProfit - expense;
+      const profit = revenue - cost - expense;
+      const inventoryValue = calculateInventoryTwd();
+      const lowStocks = state.inventory.filter(x => Number(x.stock || 0) <= 5);
 
       document.getElementById("statRevenue").textContent = nt(revenue);
       document.getElementById("statCost").textContent = nt(cost);
       document.getElementById("statExpense").textContent = nt(expense);
-      document.getElementById("statGrossProfit").textContent = nt(grossProfit);
       document.getElementById("statProfit").textContent = nt(profit);
+      document.getElementById("statSkuCount").textContent = state.inventory.length;
+      document.getElementById("statInventoryValue").textContent = `庫存價值：${nt(inventoryValue)}`;
+
+      document.getElementById("lowStockBox").innerHTML = lowStocks.length
+        ? `<div class="warning-box">低庫存提醒：${lowStocks.map(x => `${x.name}（剩 ${x.stock}）`).join("、")}</div>`
+        : `<div class="stat-sub">目前沒有低庫存商品</div>`;
+
+      document.getElementById("dashboardSalesBody").innerHTML =
+        state.sales.slice(0, 8).map(row => `
+          <tr><td>${fmtDate(row.date)}</td><td>${row.product_name ?? ""}</td><td>${row.qty ?? 0}</td><td>${nt(row.total)}</td></tr>
+        `).join("") || `<tr><td colspan="4">目前沒有資料</td></tr>`;
+
+      document.getElementById("dashboardExpensesBody").innerHTML =
+        state.expenses.slice(0, 8).map(row => `
+          <tr><td>${fmtDate(row.date)}</td><td>${row.category ?? ""}</td><td>${nt(row.amount)}</td><td>${row.note ?? ""}</td></tr>
+        `).join("") || `<tr><td colspan="4">目前沒有資料</td></tr>`;
     }
 
     function renderInventory() {
@@ -504,6 +498,7 @@
       document.getElementById("inventoryBody").innerHTML =
         rows.map(row => `
           <tr>
+            <td>${fmtDate(row.date)}</td>
             <td>${row.name ?? ""}</td>
             <td>${row.category ?? ""}</td>
             <td>${Number(row.stock || 0) <= 5 ? `<span class="low-pill">${row.stock}</span>` : row.stock ?? 0}</td>
@@ -518,7 +513,7 @@
               <button class="btn-danger btn-small" onclick="deleteInventory('${row.id}')">刪除</button>
             </td>
           </tr>
-        `).join("") || `<tr><td colspan="10">目前沒有庫存</td></tr>`;
+        `).join("") || `<tr><td colspan="11">目前沒有庫存</td></tr>`;
 
       const saleProduct = document.getElementById("saleProduct");
       saleProduct.innerHTML = state.inventory
@@ -541,6 +536,7 @@
       document.getElementById("purchaseHistoryBody").innerHTML =
         rows.map(row => `
           <tr>
+            <td>${fmtDate(row.date)}</td>
             <td>${row.name ?? ""}</td>
             <td>${row.category ?? ""}</td>
             <td><span class="pill">${row.currency ?? "TWD"}</span></td>
@@ -947,13 +943,7 @@
 
     function toggleFab(force = null) {
       fabOpen = force === null ? !fabOpen : force;
-      const activePage = document.querySelector(".nav-btn.active")?.dataset.page;
-      [fabInventory, fabSales, fabExpenses].forEach(el => el.classList.add("hidden"));
-      if (fabOpen) {
-        if (activePage === "inventory") fabInventory.classList.remove("hidden");
-        if (activePage === "sales") fabSales.classList.remove("hidden");
-        if (activePage === "expenses") fabExpenses.classList.remove("hidden");
-      }
+      [fabInventory, fabSales, fabExpenses].forEach(el => el.classList.toggle("hidden", !fabOpen));
       fabMain.textContent = fabOpen ? "✕ 關閉" : "＋ 新增";
     }
 
@@ -964,10 +954,9 @@
     document.getElementById("addSaleBtn").addEventListener("click", addSale);
     document.getElementById("addExpenseBtn").addEventListener("click", addExpense);
     document.getElementById("refreshBtn").addEventListener("click", loadAllData);
-    document.getElementById("openInventoryModalBtn2").addEventListener("click", () => { resetInventoryForm(); openModal("inventoryModal"); });
-    document.getElementById("openSalesModalBtn2").addEventListener("click", () => { resetSaleForm(); openModal("salesModal"); });
-    document.getElementById("openExpensesModalBtn2").addEventListener("click", () => { resetExpenseForm(); openModal("expensesModal"); });
-    fabMain.addEventListener("click", () => toggleFab());
+    document.getElementById("openInventoryModalBtn").addEventListener("click", () => { resetInventoryForm(); openModal("inventoryModal"); });
+    document.getElementById("openSalesModalBtn").addEventListener("click", () => { resetSaleForm(); openModal("salesModal"); });
+    document.getElementById("openExpensesModalBtn").addEventListener("click", () => { resetExpenseForm(); openModal("expensesModal"); });    fabMain.addEventListener("click", () => toggleFab());
     fabInventory.addEventListener("click", () => { resetInventoryForm(); openModal("inventoryModal"); toggleFab(false); });
     fabSales.addEventListener("click", () => { resetSaleForm(); openModal("salesModal"); toggleFab(false); });
     fabExpenses.addEventListener("click", () => { resetExpenseForm(); openModal("expensesModal"); toggleFab(false); });
@@ -977,20 +966,6 @@
     document.getElementById("invUnitCost").addEventListener("input", computeCostTwd);
     document.getElementById("invExchangeRate").addEventListener("input", computeCostTwd);
     document.getElementById("invStock").addEventListener("input", computeCostTwd);
-    document.getElementById("invName").addEventListener("input", refreshNameSuggestionList);
-    document.getElementById("invCategory").addEventListener("input", refreshCategorySuggestionList);
-    document.getElementById("showMergedInventoryBtn").addEventListener("click", () => {
-      document.getElementById("mergedInventoryWrap").classList.remove("hidden");
-      document.getElementById("purchaseHistoryWrap").classList.add("hidden");
-      document.getElementById("showMergedInventoryBtn").classList.add("active");
-      document.getElementById("showPurchaseHistoryBtn").classList.remove("active");
-    });
-    document.getElementById("showPurchaseHistoryBtn").addEventListener("click", () => {
-      document.getElementById("mergedInventoryWrap").classList.add("hidden");
-      document.getElementById("purchaseHistoryWrap").classList.remove("hidden");
-      document.getElementById("showMergedInventoryBtn").classList.remove("active");
-      document.getElementById("showPurchaseHistoryBtn").classList.add("active");
-    });
     document.getElementById("cancelInventoryEditBtn").addEventListener("click", () => { resetInventoryForm(); closeModal("inventoryModal"); });
     document.getElementById("cancelSaleEditBtn").addEventListener("click", () => { resetSaleForm(); closeModal("salesModal"); });
     document.getElementById("cancelExpenseEditBtn").addEventListener("click", () => { resetExpenseForm(); closeModal("expensesModal"); });
