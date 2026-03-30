@@ -76,6 +76,26 @@
     .modal-header { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px; }
     .modal-title { font-size:22px; font-weight:800; margin:0; }
     .icon-btn { width:auto; padding:10px 14px; border-radius:12px; background:#f3f4f6; color:#111827; }
+
+    .fab-wrap {
+      position: fixed; right: 18px; bottom: 18px; z-index: 2100; display:none;
+      flex-direction: column; align-items: flex-end; gap: 10px;
+    }
+    .fab-wrap.show { display:flex; }
+    .fab-main, .fab-item {
+      width: auto; min-width: 52px; min-height: 52px; border-radius: 999px;
+      box-shadow: 0 12px 28px rgba(15,23,42,.22);
+    }
+    .fab-main { padding: 0 18px; background:#111827; color:#fff; }
+    .fab-item { padding: 0 16px; background:#fff; color:#111827; }
+    .modal-backdrop { opacity: 0; transition: opacity .18s ease; }
+    .modal-backdrop.show { opacity: 1; }
+    .modal-card { transform: translateY(18px) scale(.98); opacity: 0; transition: transform .18s ease, opacity .18s ease; }
+    .modal-backdrop.show .modal-card { transform: translateY(0) scale(1); opacity: 1; }
+    @media (max-width: 700px) {
+      .fab-wrap.show { display:flex; }
+      .action-buttons { display:none; }
+    }
     @media (max-width: 1200px) {
       .grid.cols-4 { grid-template-columns: repeat(2, 1fr); }
       .grid.cols-3 { grid-template-columns: 1fr; }
@@ -188,8 +208,26 @@
             </div>
           </div>
 
+
           <div class="card">
-            <h3 class="section-title">進貨 / 庫存清單</h3>
+            <h3 class="section-title">進貨歷史</h3>
+            <div class="toolbar">
+              <input id="purchaseHistorySearch" placeholder="搜尋商品名稱 / 分類 / 備註" />
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>日期</th><th>商品</th><th>分類</th><th>幣別</th><th>原始單價</th><th>匯率</th><th>數量</th><th>本批成本(台幣)</th><th>備註</th>
+                  </tr>
+                </thead>
+                <tbody id="purchaseHistoryBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3 class="section-title">整合後庫存</h3>
             <div class="toolbar">
               <input id="inventorySearch" placeholder="搜尋商品名稱 / 分類" />
             </div>
@@ -389,6 +427,14 @@
     </div>
   </div>
 
+
+  <div id="fabWrap" class="fab-wrap show">
+    <button class="fab-item hidden" id="fabInventory">新增進貨</button>
+    <button class="fab-item hidden" id="fabSales">新增銷售</button>
+    <button class="fab-item hidden" id="fabExpenses">新增支出</button>
+    <button class="fab-main" id="fabMain">＋ 新增</button>
+  </div>
+
   <script>
     const SUPABASE_URL = "https://kamzjheicwjycifknrgo.supabase.co";
     const SUPABASE_KEY = "sb_publishable_KKkxJ1gTuyNe2_OvClbyiQ_kJ8-d0vh";
@@ -398,10 +444,13 @@
     const appView = document.getElementById("appView");
     const authMsg = document.getElementById("authMsg");
     const currentUserBox = document.getElementById("currentUserBox");
-    const state = { inventory: [], sales: [], expenses: [] };
+    const state = { inventory: [], sales: [], expenses: [], purchases: [] };
 
     function nt(n) { return "NT$ " + Number(n || 0).toLocaleString("zh-TW", { maximumFractionDigits: 2 }); }
     function fmtDate(v) { return v || "-"; }
+    function normalizeText(v) {
+      return (v || "").toString().trim().toLowerCase().replace(/\s+/g, "");
+    }
     function resetLogin() { localStorage.clear(); sessionStorage.clear(); location.reload(); }
     function setMsg(id, text, type="error") { const el = document.getElementById(id); el.className = type; el.textContent = text || ""; }
     function clearMsgs() { ["inventoryMsg","salesMsg","expensesMsg","authMsg"].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=""; }); }
@@ -425,8 +474,9 @@
     }
 
     function updateSuggestions() {
-      const names = [...new Set(state.inventory.map(x => (x.name || "").trim()).filter(Boolean))].sort();
-      const categories = [...new Set(state.inventory.map(x => (x.category || "").trim()).filter(Boolean))].sort();
+      const nameSource = [...state.inventory, ...state.purchases];
+      const names = [...new Set(nameSource.map(x => (x.name || "").trim()).filter(Boolean))].sort();
+      const categories = [...new Set(nameSource.map(x => (x.category || "").trim()).filter(Boolean))].sort();
 
       document.getElementById("nameSuggestions").innerHTML =
         names.map(x => `<option value="${x}"></option>`).join("");
@@ -466,10 +516,12 @@
 
     function renderInventory() {
       const keyword = (document.getElementById("inventorySearch").value || "").trim().toLowerCase();
-      const rows = state.inventory.filter(row => {
-        if (!keyword) return true;
-        return (row.name || "").toLowerCase().includes(keyword) || (row.category || "").toLowerCase().includes(keyword);
-      });
+      const rows = [...state.inventory]
+        .sort((a,b) => normalizeText(a.name).localeCompare(normalizeText(b.name)) || normalizeText(a.category).localeCompare(normalizeText(b.category)))
+        .filter(row => {
+          if (!keyword) return true;
+          return (row.name || "").toLowerCase().includes(keyword) || (row.category || "").toLowerCase().includes(keyword);
+        });
 
       document.getElementById("inventoryBody").innerHTML =
         rows.map(row => `
@@ -497,6 +549,32 @@
         .map(row => `<option value="${row.id}">${row.name}（庫存：${row.stock}）</option>`)
         .join("");
       if (!saleProduct.innerHTML) saleProduct.innerHTML = `<option value="">目前沒有可售商品</option>`;
+    }
+
+
+    function renderPurchaseHistory() {
+      const keyword = (document.getElementById("purchaseHistorySearch").value || "").trim().toLowerCase();
+      const rows = [...state.purchases]
+        .sort((a,b) => normalizeText(a.name).localeCompare(normalizeText(b.name)) || normalizeText(a.category).localeCompare(normalizeText(b.category)) || (b.date || "").localeCompare(a.date || ""))
+        .filter(row => {
+          if (!keyword) return true;
+          return [row.name, row.category, row.note].some(v => (v || "").toLowerCase().includes(keyword));
+        });
+
+      document.getElementById("purchaseHistoryBody").innerHTML =
+        rows.map(row => `
+          <tr>
+            <td>${fmtDate(row.date)}</td>
+            <td>${row.name ?? ""}</td>
+            <td>${row.category ?? ""}</td>
+            <td><span class="pill">${row.currency ?? "TWD"}</span></td>
+            <td>${Number(row.unit_cost || 0).toLocaleString("zh-TW")}</td>
+            <td>${Number(row.exchange_rate || 0).toLocaleString("zh-TW")}</td>
+            <td>${row.stock ?? 0}</td>
+            <td>${nt(Number(row.stock || 0) * Number(row.cost_twd || 0))}</td>
+            <td>${row.note ?? ""}</td>
+          </tr>
+        `).join("") || `<tr><td colspan="9">目前沒有進貨歷史</td></tr>`;
     }
 
     function renderSales() {
@@ -552,21 +630,24 @@
 
     async function loadAllData() {
       clearMsgs();
-      const [{ data: inventory, error: invErr }, { data: sales, error: salesErr }, { data: expenses, error: expErr }] = await Promise.all([
+      const [{ data: inventory, error: invErr }, { data: sales, error: salesErr }, { data: expenses, error: expErr }, { data: purchases, error: purErr }] = await Promise.all([
         supabaseClient.from("inventory").select("*").order("date", { ascending: false, nullsFirst: false }),
         supabaseClient.from("sales").select("*").order("date", { ascending: false, nullsFirst: false }),
-        supabaseClient.from("expenses").select("*").order("date", { ascending: false, nullsFirst: false })
+        supabaseClient.from("expenses").select("*").order("date", { ascending: false, nullsFirst: false }),
+        supabaseClient.from("purchase_history").select("*").order("date", { ascending: false, nullsFirst: false })
       ]);
 
       if (invErr) setMsg("inventoryMsg", invErr.message, "error");
       if (salesErr) setMsg("salesMsg", salesErr.message, "error");
       if (expErr) setMsg("expensesMsg", expErr.message, "error");
+      if (purErr) setMsg("inventoryMsg", purErr.message, "error");
 
       state.inventory = inventory || [];
       state.sales = sales || [];
       state.expenses = expenses || [];
+      state.purchases = purchases || [];
       updateSuggestions();
-      renderDashboard(); renderInventory(); renderSales(); renderExpenses(); updateSalePreview();
+      renderDashboard(); renderInventory(); renderPurchaseHistory(); renderSales(); renderExpenses(); updateSalePreview();
     }
 
     async function handleLogin() {
@@ -648,7 +729,7 @@
         return;
       }
 
-      // 編輯模式：直接更新
+      // 編輯模式：直接更新整合後庫存，不新增進貨歷史
       if (editId) {
         const payload = { date, name, category, stock, currency, unit_cost, exchange_rate, cost_twd, note };
         const result = await supabaseClient.from("inventory").update(payload).eq("id", editId).select();
@@ -657,10 +738,16 @@
         resetInventoryForm(); closeModal("inventoryModal"); await loadAllData(); return;
       }
 
+      // 先寫入進貨歷史
+      const historyInsert = await supabaseClient.from("purchase_history").insert([{
+        date, name, category, stock, currency, unit_cost, exchange_rate, cost_twd, note
+      }]).select();
+      if (historyInsert.error) { setMsg("inventoryMsg", historyInsert.error.message); return; }
+
       // 新增模式：相同商品名稱＋分類自動合併並重新算平均成本
       const existing = state.inventory.find(x =>
-        (x.name || "").trim().toLowerCase() === name.toLowerCase() &&
-        (x.category || "").trim().toLowerCase() === category.toLowerCase()
+        normalizeText(x.name) === normalizeText(name) &&
+        normalizeText(x.category) === normalizeText(category)
       );
 
       if (existing) {
@@ -875,6 +962,20 @@
       document.getElementById("saleTotalPreview").value = nt(qty * price);
     }
 
+
+    const fabMain = document.getElementById("fabMain");
+    const fabInventory = document.getElementById("fabInventory");
+    const fabSales = document.getElementById("fabSales");
+    const fabExpenses = document.getElementById("fabExpenses");
+    let fabOpen = false;
+
+    function toggleFab(force = null) {
+      fabOpen = force === null ? !fabOpen : force;
+      [fabInventory, fabSales, fabExpenses].forEach(el => el.classList.toggle("hidden", !fabOpen));
+      fabMain.textContent = fabOpen ? "✕ 關閉" : "＋ 新增";
+    }
+
+
     document.getElementById("loginBtn").addEventListener("click", handleLogin);
     document.getElementById("logoutBtn").addEventListener("click", handleLogout);
     document.getElementById("addInventoryBtn").addEventListener("click", addInventory);
@@ -887,6 +988,10 @@
     document.getElementById("openInventoryModalBtn2").addEventListener("click", () => { resetInventoryForm(); openModal("inventoryModal"); });
     document.getElementById("openSalesModalBtn2").addEventListener("click", () => { resetSaleForm(); openModal("salesModal"); });
     document.getElementById("openExpensesModalBtn2").addEventListener("click", () => { resetExpenseForm(); openModal("expensesModal"); });
+    fabMain.addEventListener("click", () => toggleFab());
+    fabInventory.addEventListener("click", () => { resetInventoryForm(); openModal("inventoryModal"); toggleFab(false); });
+    fabSales.addEventListener("click", () => { resetSaleForm(); openModal("salesModal"); toggleFab(false); });
+    fabExpenses.addEventListener("click", () => { resetExpenseForm(); openModal("expensesModal"); toggleFab(false); });
     document.getElementById("saleQty").addEventListener("input", updateSalePreview);
     document.getElementById("salePrice").addEventListener("input", updateSalePreview);
     document.getElementById("invCurrency").addEventListener("change", computeCostTwd);
@@ -897,6 +1002,7 @@
     document.getElementById("cancelSaleEditBtn").addEventListener("click", () => { resetSaleForm(); closeModal("salesModal"); });
     document.getElementById("cancelExpenseEditBtn").addEventListener("click", () => { resetExpenseForm(); closeModal("expensesModal"); });
     document.getElementById("inventorySearch").addEventListener("input", renderInventory);
+    document.getElementById("purchaseHistorySearch").addEventListener("input", renderPurchaseHistory);
     document.getElementById("salesSearch").addEventListener("input", renderSales);
     document.getElementById("expensesSearch").addEventListener("input", renderExpenses);
 
@@ -914,6 +1020,13 @@
         authView.classList.remove("hidden");
         currentUserBox.textContent = "未登入";
       }
+    });
+
+    ["inventoryModal","salesModal","expensesModal"].forEach(id => {
+      const modal = document.getElementById(id);
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) closeModal(id);
+      });
     });
 
     syncAuthUI();
