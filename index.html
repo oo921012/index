@@ -50,15 +50,6 @@
     .btn-danger { background: #fee2e2; color: #991b1b; }
     .btn-small { width: auto; padding: 8px 12px; border-radius: 10px; font-size: 13px; margin-right: 6px; }
     .toggle-btn.active { background:#111827; color:#fff; }
-    .main { padding: 18px 20px 88px; }
-    .compact-table table { min-width: 720px; }
-    .stat-stack { display:grid; gap:14px; max-width:520px; }
-    .stat-card-vertical { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:18px 20px; border:1px solid #e5e7eb; border-radius:18px; background:#fff; box-shadow:0 10px 28px rgba(17,24,39,0.04); }
-    .stat-card-vertical .label { color:#6b7280; font-size:13px; }
-    .stat-card-vertical .value { font-size:24px; font-weight:800; color:#111827; }
-    .section-head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; }
-    .section-sub { color:#6b7280; font-size:13px; }
-
     .table-wrap { overflow: auto; }
     table { width: 100%; border-collapse: collapse; min-width: 760px; }
     th, td { padding: 12px 10px; border-bottom: 1px solid #e5e7eb; text-align: left; font-size: 14px; vertical-align: top; }
@@ -127,7 +118,7 @@
       <p class="auth-sub">使用你在 Supabase 建立的管理員帳號登入。</p>
       <div>
         <label for="loginEmail">Email</label>
-        <input id="loginEmail" type="email" placeholder="oo921012@gmail.com" value="oo921012@gmail.com" />
+        <input id="loginEmail" type="email" placeholder="oo92101@gmail.com" value="oo92101@gmail.com" />
       </div>
       <div style="margin-top:12px;">
         <label for="loginPassword">Password</label>
@@ -163,110 +154,114 @@
           <h2 class="page-title" id="pageTitle">Dashboard</h2>
           <div class="muted">Supabase｜日期＋多幣別＋關鍵字提醒＋平均成本自動合併</div>
         </div>
-        <div class="action-buttons">
-          <button class="btn-primary" id="openInventoryModalBtn" style="width:auto;">新增進貨</button>
-          <button class="btn-primary" id="openSalesModalBtn" style="width:auto;">新增銷售</button>
-          <button class="btn-primary" id="openExpensesModalBtn" style="width:auto;">新增支出</button>
-          <button class="btn-secondary" id="refreshBtn" style="width:auto;">重新整理資料</button>
-        </div>
+        <button class="btn-secondary" id="refreshBtn" style="max-width:160px;">重新整理資料</button>
       </div>
 
       <section id="page-dashboard" class="page">
-        <div class="card">
-          <div class="section-head">
-            <div>
-              <h3 class="section-title">損益報表</h3>
-              <div class="section-sub">只保留最重要的五個數字。</div>
-            </div>
-          </div>
-          <div class="stat-stack">
-            <div class="stat-card-vertical"><div class="label">總銷售額</div><div class="value" id="statRevenue">NT$ 0</div></div>
-            <div class="stat-card-vertical"><div class="label">總成本</div><div class="value" id="statCost">NT$ 0</div></div>
-            <div class="stat-card-vertical"><div class="label">總支出</div><div class="value" id="statExpense">NT$ 0</div></div>
-            <div class="stat-card-vertical"><div class="label">毛利</div><div class="value" id="statGrossProfit">NT$ 0</div></div>
-            <div class="stat-card-vertical"><div class="label">淨利</div><div class="value" id="statProfit">NT$ 0</div></div>
-          </div>
+        <div class="grid">
+          <div class="card"><div class="stat-label">總銷售額</div><div class="stat-value" id="statRevenue">NT$ 0</div></div>
+          <div class="card"><div class="stat-label">總成本</div><div class="stat-value" id="statCost">NT$ 0</div></div>
+          <div class="card"><div class="stat-label">總支出</div><div class="stat-value" id="statExpense">NT$ 0</div></div>
+          <div class="card"><div class="stat-label">毛利</div><div class="stat-value" id="statGrossProfit">NT$ 0</div></div>
+          <div class="card"><div class="stat-label">淨利</div><div class="stat-value" id="statProfit">NT$ 0</div></div>
         </div>
       </section>
 
       <section id="page-inventory" class="page hidden">
-        <div class="card compact-table">
-          <div class="section-head">
-            <div>
-              <h3 class="section-title">多幣別進貨</h3>
-              <div class="section-sub">切換查看整合後庫存或進貨歷史。</div>
+        <div class="grid cols-2">
+          <div class="card">
+            <h3 class="section-title">進貨操作</h3>
+            <div class="notice">這一頁只能新增進貨。</div>
+            <div style="margin-top:12px;">
+              <button class="btn-primary" id="openInventoryModalBtn2" style="width:auto;">新增進貨</button>
             </div>
           </div>
-          <div class="toolbar">
-            <button class="btn-secondary btn-small toggle-btn active" id="showMergedInventoryBtn" type="button">整合後庫存</button>
-            <button class="btn-secondary btn-small toggle-btn" id="showPurchaseHistoryBtn" type="button">進貨歷史</button>
-            <input id="inventorySearch" placeholder="搜尋商品名稱 / 分類" />
-            <input id="purchaseHistorySearch" class="hidden" placeholder="搜尋進貨歷史" />
-          </div>
-          <div class="table-wrap" id="mergedInventoryWrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>商品</th><th>分類</th><th>庫存</th><th>幣別</th><th>原始單價</th><th>匯率</th><th>平均成本(台幣)</th><th>庫存價值</th><th>備註</th><th>操作</th>
-                </tr>
-              </thead>
-              <tbody id="inventoryBody"></tbody>
-            </table>
-          </div>
-          <div class="table-wrap hidden" id="purchaseHistoryWrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>日期</th><th>商品</th><th>分類</th><th>幣別</th><th>原始單價</th><th>匯率</th><th>數量</th><th>本批成本(台幣)</th><th>備註</th>
-                </tr>
-              </thead>
-              <tbody id="purchaseHistoryBody"></tbody>
-            </table>
+
+          <div class="card">
+            <h3 class="section-title">庫存顯示切換</h3>
+            <div class="toolbar">
+              <button class="btn-secondary btn-small toggle-btn active" id="showMergedInventoryBtn" type="button">整合後庫存</button>
+              <button class="btn-secondary btn-small toggle-btn" id="showPurchaseHistoryBtn" type="button">進貨歷史</button>
+              <input id="inventorySearch" placeholder="搜尋商品名稱 / 分類" />
+              <input id="purchaseHistorySearch" placeholder="搜尋進貨歷史" />
+            </div>
+
+            <div class="table-wrap" id="mergedInventoryWrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>商品</th><th>分類</th><th>庫存</th><th>幣別</th><th>原始單價</th><th>匯率</th><th>平均成本(台幣)</th><th>庫存價值</th><th>備註</th><th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="inventoryBody"></tbody>
+              </table>
+            </div>
+
+            <div class="table-wrap hidden" id="purchaseHistoryWrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>日期</th><th>商品</th><th>分類</th><th>幣別</th><th>原始單價</th><th>匯率</th><th>數量</th><th>本批成本(台幣)</th><th>備註</th>
+                  </tr>
+                </thead>
+                <tbody id="purchaseHistoryBody"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </section>
 
       <section id="page-sales" class="page hidden">
-        <div class="card compact-table">
-          <div class="section-head">
-            <div>
-              <h3 class="section-title">銷售紀錄</h3>
-              <div class="section-sub">在這頁只能新增銷售。</div>
+        <div class="grid cols-2">
+          <div class="card">
+            <h3 class="section-title">銷售操作</h3>
+            <div class="notice">這一頁只能新增銷售。</div>
+            <div style="margin-top:12px;">
+              <button class="btn-primary" id="openSalesModalBtn2" style="width:auto;">新增銷售</button>
             </div>
           </div>
-          <div class="toolbar">
-            <input id="salesSearch" placeholder="搜尋商品 / 備註 / 交易方式 / 物流" />
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>日期</th><th>商品</th><th>數量</th><th>單價</th><th>總額</th><th>成本</th><th>毛利</th>
-                  <th>交易方式</th><th>後五碼</th><th>物流</th><th>備註</th><th>操作</th>
-                </tr>
-              </thead>
-              <tbody id="salesBody"></tbody>
-            </table>
+
+          <div class="card">
+            <h3 class="section-title">銷售紀錄</h3>
+            <div class="toolbar">
+              <input id="salesSearch" placeholder="搜尋商品 / 備註 / 交易方式 / 物流" />
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>日期</th><th>商品</th><th>數量</th><th>單價</th><th>總額</th><th>成本</th><th>毛利</th>
+                    <th>交易方式</th><th>後五碼</th><th>物流</th><th>備註</th><th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="salesBody"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </section>
 
       <section id="page-expenses" class="page hidden">
-        <div class="card compact-table">
-          <div class="section-head">
-            <div>
-              <h3 class="section-title">營運支出</h3>
-              <div class="section-sub">在這頁只能新增支出。</div>
+        <div class="grid cols-2">
+          <div class="card">
+            <h3 class="section-title">支出操作</h3>
+            <div class="notice">這一頁只能新增支出。</div>
+            <div style="margin-top:12px;">
+              <button class="btn-primary" id="openExpensesModalBtn2" style="width:auto;">新增支出</button>
             </div>
           </div>
-          <div class="toolbar">
-            <input id="expensesSearch" placeholder="搜尋類別 / 備註" />
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>日期</th><th>類別</th><th>金額</th><th>備註</th><th>操作</th></tr></thead>
-              <tbody id="expensesBody"></tbody>
-            </table>
+
+          <div class="card">
+            <h3 class="section-title">支出紀錄</h3>
+            <div class="toolbar">
+              <input id="expensesSearch" placeholder="搜尋類別 / 備註" />
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>日期</th><th>類別</th><th>金額</th><th>備註</th><th>操作</th></tr></thead>
+                <tbody id="expensesBody"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </section>
@@ -438,21 +433,22 @@
         dashboard:"損益報表", inventory:"多幣別進貨", sales:"銷售紀錄", expenses:"營運支出"
       }[page] || "Dashboard";
 
+      const fabWrap = document.getElementById("fabWrap");
+      if (window.innerWidth <= 700 && page !== "dashboard") {
+        fabWrap.classList.add("show");
+      } else {
+        fabWrap.classList.remove("show");
+      }
       toggleFab(false);
+
       const merged = document.getElementById("mergedInventoryWrap");
       const history = document.getElementById("purchaseHistoryWrap");
       if (merged && history) {
         merged.classList.remove("hidden");
         history.classList.add("hidden");
+        document.getElementById("showMergedInventoryBtn")?.classList.add("active");
+        document.getElementById("showPurchaseHistoryBtn")?.classList.remove("active");
       }
-      const inventorySearch = document.getElementById("inventorySearch");
-      const purchaseHistorySearch = document.getElementById("purchaseHistorySearch");
-      if (inventorySearch && purchaseHistorySearch) {
-        inventorySearch.classList.remove("hidden");
-        purchaseHistorySearch.classList.add("hidden");
-      }
-      document.getElementById("showMergedInventoryBtn")?.classList.add("active");
-      document.getElementById("showPurchaseHistoryBtn")?.classList.remove("active");
     }
 
     function calculateInventoryTwd() {
@@ -463,6 +459,7 @@
       const source = [...state.inventory, ...state.purchases];
       state.nameSuggestions = [...new Set(source.map(x => (x.name || "").trim()).filter(Boolean))].sort();
       state.categorySuggestions = [...new Set(source.map(x => (x.category || "").trim()).filter(Boolean))].sort();
+
       refreshNameSuggestionList();
       refreshCategorySuggestionList();
     }
@@ -950,7 +947,13 @@
 
     function toggleFab(force = null) {
       fabOpen = force === null ? !fabOpen : force;
-      [fabInventory, fabSales, fabExpenses].forEach(el => el.classList.toggle("hidden", !fabOpen));
+      const activePage = document.querySelector(".nav-btn.active")?.dataset.page;
+      [fabInventory, fabSales, fabExpenses].forEach(el => el.classList.add("hidden"));
+      if (fabOpen) {
+        if (activePage === "inventory") fabInventory.classList.remove("hidden");
+        if (activePage === "sales") fabSales.classList.remove("hidden");
+        if (activePage === "expenses") fabExpenses.classList.remove("hidden");
+      }
       fabMain.textContent = fabOpen ? "✕ 關閉" : "＋ 新增";
     }
 
@@ -979,16 +982,12 @@
     document.getElementById("showMergedInventoryBtn").addEventListener("click", () => {
       document.getElementById("mergedInventoryWrap").classList.remove("hidden");
       document.getElementById("purchaseHistoryWrap").classList.add("hidden");
-      document.getElementById("inventorySearch").classList.remove("hidden");
-      document.getElementById("purchaseHistorySearch").classList.add("hidden");
       document.getElementById("showMergedInventoryBtn").classList.add("active");
       document.getElementById("showPurchaseHistoryBtn").classList.remove("active");
     });
     document.getElementById("showPurchaseHistoryBtn").addEventListener("click", () => {
       document.getElementById("mergedInventoryWrap").classList.add("hidden");
       document.getElementById("purchaseHistoryWrap").classList.remove("hidden");
-      document.getElementById("inventorySearch").classList.add("hidden");
-      document.getElementById("purchaseHistorySearch").classList.remove("hidden");
       document.getElementById("showMergedInventoryBtn").classList.remove("active");
       document.getElementById("showPurchaseHistoryBtn").classList.add("active");
     });
