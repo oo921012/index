@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Inventory System Pro+</title>
+  <title>Inventory System Pro Max</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { box-sizing: border-box; }
@@ -50,13 +50,17 @@
     .btn-danger { background: #fee2e2; color: #991b1b; }
     .btn-small { width: auto; padding: 8px 12px; border-radius: 10px; font-size: 13px; margin-right: 6px; }
     .table-wrap { overflow: auto; }
-    table { width: 100%; border-collapse: collapse; min-width: 1100px; }
+    table { width: 100%; border-collapse: collapse; min-width: 1200px; }
     th, td { padding: 12px 10px; border-bottom: 1px solid #e5e7eb; text-align: left; font-size: 14px; vertical-align: top; }
     th { color: #6b7280; font-weight: 700; background: #f9fafb; position: sticky; top: 0; z-index: 1; }
     .pill { display: inline-block; padding: 6px 10px; border-radius: 999px; background: #eef2ff; color: #3730a3; font-size: 12px; font-weight: 700; }
+    .low-pill { display: inline-block; padding: 6px 10px; border-radius: 999px; background: #fee2e2; color: #991b1b; font-size: 12px; font-weight: 700; }
     .notice { margin-top: 12px; font-size: 13px; color: #6b7280; }
     .error { color: #b91c1c; font-size: 14px; margin-top: 10px; }
     .success { color: #166534; font-size: 14px; margin-top: 10px; }
+    .toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+    .toolbar input { max-width: 280px; }
+    .warning-box { background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412; padding: 14px 16px; border-radius: 16px; }
     @media (max-width: 1200px) {
       .grid.cols-4 { grid-template-columns: repeat(2, 1fr); }
       .grid.cols-3 { grid-template-columns: 1fr; }
@@ -97,7 +101,7 @@
 
   <div id="appView" class="app hidden">
     <aside class="sidebar">
-      <div class="brand">System Pro+</div>
+      <div class="brand">System Pro Max</div>
       <button class="nav-btn active" data-page="dashboard">Dashboard</button>
       <button class="nav-btn" data-page="inventory">多幣別進貨</button>
       <button class="nav-btn" data-page="sales">銷售紀錄</button>
@@ -112,33 +116,17 @@
       <div class="topbar">
         <div>
           <h2 class="page-title" id="pageTitle">Dashboard</h2>
-          <div class="muted">Supabase｜多幣別＋日期＋真正損益報表＋可編輯刪除</div>
+          <div class="muted">Supabase｜日期＋多幣別＋關鍵字提醒＋平均成本自動合併</div>
         </div>
         <button class="btn-secondary" id="refreshBtn" style="max-width:160px;">重新整理資料</button>
       </div>
 
       <section id="page-dashboard" class="page">
         <div class="grid cols-4">
-          <div class="card">
-            <div class="stat-label">總營收</div>
-            <div class="stat-value" id="statRevenue">NT$ 0</div>
-            <div class="stat-sub">全部銷售總額</div>
-          </div>
-          <div class="card">
-            <div class="stat-label">商品成本</div>
-            <div class="stat-value" id="statCost">NT$ 0</div>
-            <div class="stat-sub">已售商品成本</div>
-          </div>
-          <div class="card">
-            <div class="stat-label">營運支出</div>
-            <div class="stat-value" id="statExpense">NT$ 0</div>
-            <div class="stat-sub">全部支出</div>
-          </div>
-          <div class="card">
-            <div class="stat-label">淨利</div>
-            <div class="stat-value" id="statProfit">NT$ 0</div>
-            <div class="stat-sub">營收 - 成本 - 支出</div>
-          </div>
+          <div class="card"><div class="stat-label">總營收</div><div class="stat-value" id="statRevenue">NT$ 0</div><div class="stat-sub">全部銷售總額</div></div>
+          <div class="card"><div class="stat-label">商品成本</div><div class="stat-value" id="statCost">NT$ 0</div><div class="stat-sub">已售商品成本</div></div>
+          <div class="card"><div class="stat-label">營運支出</div><div class="stat-value" id="statExpense">NT$ 0</div><div class="stat-sub">全部支出</div></div>
+          <div class="card"><div class="stat-label">淨利</div><div class="stat-value" id="statProfit">NT$ 0</div><div class="stat-sub">營收 - 成本 - 支出</div></div>
         </div>
 
         <div class="grid cols-3" style="margin-top:18px;">
@@ -147,14 +135,13 @@
             <div class="stat-label">現有商品種類</div>
             <div class="stat-value" id="statSkuCount">0</div>
             <div class="stat-sub" id="statInventoryValue">庫存價值：NT$ 0</div>
+            <div style="margin-top:16px;" id="lowStockBox"></div>
           </div>
           <div class="card">
             <h3 class="section-title">最近銷售</h3>
             <div class="table-wrap">
               <table>
-                <thead>
-                  <tr><th>日期</th><th>商品</th><th>數量</th><th>總額</th></tr>
-                </thead>
+                <thead><tr><th>日期</th><th>商品</th><th>數量</th><th>總額</th></tr></thead>
                 <tbody id="dashboardSalesBody"></tbody>
               </table>
             </div>
@@ -163,9 +150,7 @@
             <h3 class="section-title">最近支出</h3>
             <div class="table-wrap">
               <table>
-                <thead>
-                  <tr><th>日期</th><th>類別</th><th>金額</th><th>備註</th></tr>
-                </thead>
+                <thead><tr><th>日期</th><th>類別</th><th>金額</th><th>備註</th></tr></thead>
                 <tbody id="dashboardExpensesBody"></tbody>
               </table>
             </div>
@@ -180,26 +165,13 @@
             <div class="form-grid">
               <input type="hidden" id="invEditId" />
               <div class="row-3">
-                <div>
-                  <label>進貨日期</label>
-                  <input id="invDate" type="date" />
-                </div>
-                <div>
-                  <label>商品名稱</label>
-                  <input id="invName" placeholder="例如：襪子" />
-                </div>
-                <div>
-                  <label>分類</label>
-                  <input id="invCategory" placeholder="例如：服飾" />
-                </div>
+                <div><label>進貨日期</label><input id="invDate" type="date" /></div>
+                <div><label>商品名稱</label><input id="invName" list="nameSuggestions" placeholder="例如：襪子" /><datalist id="nameSuggestions"></datalist></div>
+                <div><label>分類</label><input id="invCategory" list="categorySuggestions" placeholder="例如：服飾" /><datalist id="categorySuggestions"></datalist></div>
               </div>
               <div class="row-4">
-                <div>
-                  <label>庫存數量</label>
-                  <input id="invStock" type="number" min="1" placeholder="例如：20" />
-                </div>
-                <div>
-                  <label>幣別</label>
+                <div><label>庫存數量</label><input id="invStock" type="number" min="1" placeholder="例如：20" /></div>
+                <div><label>幣別</label>
                   <select id="invCurrency">
                     <option value="TWD">台幣 TWD</option>
                     <option value="JPY">日幣 JPY</option>
@@ -209,29 +181,15 @@
                     <option value="CNY">人民幣 CNY</option>
                   </select>
                 </div>
-                <div>
-                  <label>原始單價</label>
-                  <input id="invUnitCost" type="number" min="0" step="0.01" placeholder="例如：500" />
-                </div>
-                <div>
-                  <label>匯率（1外幣=幾台幣）</label>
-                  <input id="invExchangeRate" type="number" min="0" step="0.0001" value="1" />
-                </div>
+                <div><label>原始單價</label><input id="invUnitCost" type="number" min="0" step="0.01" placeholder="例如：500" /></div>
+                <div><label>匯率（1外幣=幾台幣）</label><input id="invExchangeRate" type="number" min="0" step="0.0001" value="1" /></div>
               </div>
               <div class="row-3">
-                <div>
-                  <label>平均成本（台幣）</label>
-                  <input id="invCost" type="number" min="0" step="0.01" placeholder="自動計算，可手動覆蓋" />
-                </div>
-                <div>
-                  <label>備註</label>
-                  <input id="invNote" placeholder="來源/款式/批次" />
-                </div>
-                <div>
-                  <label>本批總成本（台幣）</label>
-                  <input id="invTotalCostPreview" readonly />
-                </div>
+                <div><label>平均成本（台幣）</label><input id="invCost" type="number" min="0" step="0.01" placeholder="自動計算，可手動覆蓋" /></div>
+                <div><label>備註</label><input id="invNote" placeholder="來源/款式/批次" /></div>
+                <div><label>本批總成本（台幣）</label><input id="invTotalCostPreview" readonly /></div>
               </div>
+              <div class="notice">相同商品名稱＋相同分類會自動合併，並用加權平均重新計算成本。</div>
               <div class="row-2">
                 <button class="btn-primary" id="addInventoryBtn">儲存進貨</button>
                 <button class="btn-secondary" id="cancelInventoryEditBtn" type="button">取消編輯</button>
@@ -242,12 +200,15 @@
 
           <div class="card">
             <h3 class="section-title">進貨 / 庫存清單</h3>
+            <div class="toolbar">
+              <input id="inventorySearch" placeholder="搜尋商品名稱 / 分類" />
+            </div>
             <div class="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>日期</th><th>商品</th><th>分類</th><th>庫存</th><th>幣別</th>
-                    <th>原始單價</th><th>匯率</th><th>成本(台幣)</th><th>庫存價值</th><th>備註</th><th>操作</th>
+                    <th>日期</th><th>商品</th><th>分類</th><th>庫存</th><th>幣別</th><th>原始單價</th><th>匯率</th>
+                    <th>平均成本(台幣)</th><th>庫存價值</th><th>備註</th><th>操作</th>
                   </tr>
                 </thead>
                 <tbody id="inventoryBody"></tbody>
@@ -266,54 +227,31 @@
               <input type="hidden" id="saleOriginalQty" />
               <input type="hidden" id="saleOriginalInventoryId" />
               <div class="row-3">
-                <div>
-                  <label>日期</label>
-                  <input id="saleDate" type="date" />
-                </div>
-                <div>
-                  <label>商品</label>
-                  <select id="saleProduct"></select>
-                </div>
-                <div>
-                  <label>數量</label>
-                  <input id="saleQty" type="number" min="1" placeholder="例如：1" />
-                </div>
+                <div><label>日期</label><input id="saleDate" type="date" /></div>
+                <div><label>商品</label><select id="saleProduct"></select></div>
+                <div><label>數量</label><input id="saleQty" type="number" min="1" placeholder="例如：1" /></div>
               </div>
               <div class="row-3">
-                <div>
-                  <label>售價單價（台幣）</label>
-                  <input id="salePrice" type="number" min="0" step="0.01" placeholder="例如：590" />
-                </div>
-                <div>
-                  <label>交易方式</label>
+                <div><label>售價單價（台幣）</label><input id="salePrice" type="number" min="0" step="0.01" placeholder="例如：590" /></div>
+                <div><label>交易方式</label>
                   <select id="salePayment">
                     <option value="匯款">匯款</option>
                     <option value="貨到付款">貨到付款</option>
                     <option value="現金">現金</option>
                   </select>
                 </div>
-                <div>
-                  <label>匯款後五碼</label>
-                  <input id="salePaymentCode" placeholder="匯款才填" />
-                </div>
+                <div><label>匯款後五碼</label><input id="salePaymentCode" placeholder="匯款才填" /></div>
               </div>
               <div class="row-3">
-                <div>
-                  <label>物流方式</label>
+                <div><label>物流方式</label>
                   <select id="saleDelivery">
                     <option value="店到店">店到店</option>
                     <option value="宅配">宅配</option>
                     <option value="面交">面交</option>
                   </select>
                 </div>
-                <div>
-                  <label>備註</label>
-                  <input id="saleNote" placeholder="可填客戶/平台/訂單" />
-                </div>
-                <div>
-                  <label>總額預覽</label>
-                  <input id="saleTotalPreview" readonly />
-                </div>
+                <div><label>備註</label><input id="saleNote" placeholder="可填客戶/平台/訂單" /></div>
+                <div><label>總額預覽</label><input id="saleTotalPreview" readonly /></div>
               </div>
               <div class="row-2">
                 <button class="btn-primary" id="addSaleBtn">儲存銷售</button>
@@ -325,6 +263,9 @@
 
           <div class="card">
             <h3 class="section-title">銷售紀錄</h3>
+            <div class="toolbar">
+              <input id="salesSearch" placeholder="搜尋商品 / 備註 / 交易方式 / 物流" />
+            </div>
             <div class="table-wrap">
               <table>
                 <thead>
@@ -347,31 +288,22 @@
             <div class="form-grid">
               <input type="hidden" id="expEditId" />
               <div class="row-3">
-                <div>
-                  <label>日期</label>
-                  <input id="expDate" type="date" />
+                <div><label>日期</label><input id="expDate" type="date" /></div>
+                <div><label>類別</label>
+                  <input id="expCategory" list="expenseCategorySuggestions" placeholder="例如：機票" />
+                  <datalist id="expenseCategorySuggestions">
+                    <option value="機票"></option>
+                    <option value="住宿"></option>
+                    <option value="國際運費"></option>
+                    <option value="台灣物流"></option>
+                    <option value="包材"></option>
+                    <option value="手續費"></option>
+                    <option value="其他"></option>
+                  </datalist>
                 </div>
-                <div>
-                  <label>類別</label>
-                  <select id="expCategory">
-                    <option value="機票">機票</option>
-                    <option value="住宿">住宿</option>
-                    <option value="國際運費">國際運費</option>
-                    <option value="台灣物流">台灣物流</option>
-                    <option value="包材">包材</option>
-                    <option value="手續費">手續費</option>
-                    <option value="其他">其他</option>
-                  </select>
-                </div>
-                <div>
-                  <label>金額</label>
-                  <input id="expAmount" type="number" min="0" step="0.01" placeholder="例如：1200" />
-                </div>
+                <div><label>金額</label><input id="expAmount" type="number" min="0" step="0.01" placeholder="例如：1200" /></div>
               </div>
-              <div>
-                <label>備註</label>
-                <textarea id="expNote" placeholder="可填來源、航班、物流單號等"></textarea>
-              </div>
+              <div><label>備註</label><textarea id="expNote" placeholder="可填來源、航班、物流單號等"></textarea></div>
               <div class="row-2">
                 <button class="btn-primary" id="addExpenseBtn">儲存支出</button>
                 <button class="btn-secondary" id="cancelExpenseEditBtn" type="button">取消編輯</button>
@@ -382,11 +314,12 @@
 
           <div class="card">
             <h3 class="section-title">支出紀錄</h3>
+            <div class="toolbar">
+              <input id="expensesSearch" placeholder="搜尋類別 / 備註" />
+            </div>
             <div class="table-wrap">
               <table>
-                <thead>
-                  <tr><th>日期</th><th>類別</th><th>金額</th><th>備註</th><th>操作</th></tr>
-                </thead>
+                <thead><tr><th>日期</th><th>類別</th><th>金額</th><th>備註</th><th>操作</th></tr></thead>
                 <tbody id="expensesBody"></tbody>
               </table>
             </div>
@@ -427,12 +360,23 @@
       return state.inventory.reduce((sum, row) => sum + (Number(row.stock || 0) * Number(row.cost_twd || 0)), 0);
     }
 
+    function updateSuggestions() {
+      const names = [...new Set(state.inventory.map(x => (x.name || "").trim()).filter(Boolean))].sort();
+      const categories = [...new Set(state.inventory.map(x => (x.category || "").trim()).filter(Boolean))].sort();
+
+      document.getElementById("nameSuggestions").innerHTML =
+        names.map(x => `<option value="${x}"></option>`).join("");
+      document.getElementById("categorySuggestions").innerHTML =
+        categories.map(x => `<option value="${x}"></option>`).join("");
+    }
+
     function renderDashboard() {
       const revenue = state.sales.reduce((sum, x) => sum + Number(x.total || 0), 0);
       const cost = state.sales.reduce((sum, x) => sum + Number(x.cost_twd || 0), 0);
       const expense = state.expenses.reduce((sum, x) => sum + Number(x.amount || 0), 0);
       const profit = revenue - cost - expense;
       const inventoryValue = calculateInventoryTwd();
+      const lowStocks = state.inventory.filter(x => Number(x.stock || 0) <= 5);
 
       document.getElementById("statRevenue").textContent = nt(revenue);
       document.getElementById("statCost").textContent = nt(cost);
@@ -440,6 +384,10 @@
       document.getElementById("statProfit").textContent = nt(profit);
       document.getElementById("statSkuCount").textContent = state.inventory.length;
       document.getElementById("statInventoryValue").textContent = `庫存價值：${nt(inventoryValue)}`;
+
+      document.getElementById("lowStockBox").innerHTML = lowStocks.length
+        ? `<div class="warning-box">低庫存提醒：${lowStocks.map(x => `${x.name}（剩 ${x.stock}）`).join("、")}</div>`
+        : `<div class="stat-sub">目前沒有低庫存商品</div>`;
 
       document.getElementById("dashboardSalesBody").innerHTML =
         state.sales.slice(0, 8).map(row => `
@@ -453,13 +401,19 @@
     }
 
     function renderInventory() {
+      const keyword = (document.getElementById("inventorySearch").value || "").trim().toLowerCase();
+      const rows = state.inventory.filter(row => {
+        if (!keyword) return true;
+        return (row.name || "").toLowerCase().includes(keyword) || (row.category || "").toLowerCase().includes(keyword);
+      });
+
       document.getElementById("inventoryBody").innerHTML =
-        state.inventory.map(row => `
+        rows.map(row => `
           <tr>
             <td>${fmtDate(row.date)}</td>
             <td>${row.name ?? ""}</td>
             <td>${row.category ?? ""}</td>
-            <td>${row.stock ?? 0}</td>
+            <td>${Number(row.stock || 0) <= 5 ? `<span class="low-pill">${row.stock}</span>` : row.stock ?? 0}</td>
             <td><span class="pill">${row.currency ?? "TWD"}</span></td>
             <td>${Number(row.unit_cost || 0).toLocaleString("zh-TW")}</td>
             <td>${Number(row.exchange_rate || 0).toLocaleString("zh-TW")}</td>
@@ -482,8 +436,14 @@
     }
 
     function renderSales() {
+      const keyword = (document.getElementById("salesSearch").value || "").trim().toLowerCase();
+      const rows = state.sales.filter(row => {
+        if (!keyword) return true;
+        return [row.product_name, row.note, row.payment_method, row.delivery_method].some(v => (v || "").toLowerCase().includes(keyword));
+      });
+
       document.getElementById("salesBody").innerHTML =
-        state.sales.map(row => `
+        rows.map(row => `
           <tr>
             <td>${fmtDate(row.date)}</td>
             <td>${row.product_name ?? ""}</td>
@@ -505,8 +465,14 @@
     }
 
     function renderExpenses() {
+      const keyword = (document.getElementById("expensesSearch").value || "").trim().toLowerCase();
+      const rows = state.expenses.filter(row => {
+        if (!keyword) return true;
+        return [row.category, row.note].some(v => (v || "").toLowerCase().includes(keyword));
+      });
+
       document.getElementById("expensesBody").innerHTML =
-        state.expenses.map(row => `
+        rows.map(row => `
           <tr>
             <td>${fmtDate(row.date)}</td>
             <td>${row.category ?? ""}</td>
@@ -535,6 +501,7 @@
       state.inventory = inventory || [];
       state.sales = sales || [];
       state.expenses = expenses || [];
+      updateSuggestions();
       renderDashboard(); renderInventory(); renderSales(); renderExpenses(); updateSalePreview();
     }
 
@@ -617,14 +584,52 @@
         return;
       }
 
-      const payload = { date, name, category, stock, currency, unit_cost, exchange_rate, cost_twd, note };
-      const result = editId
-        ? await supabaseClient.from("inventory").update(payload).eq("id", editId).select()
-        : await supabaseClient.from("inventory").insert([payload]).select();
+      // 編輯模式：直接更新
+      if (editId) {
+        const payload = { date, name, category, stock, currency, unit_cost, exchange_rate, cost_twd, note };
+        const result = await supabaseClient.from("inventory").update(payload).eq("id", editId).select();
+        if (result.error) { setMsg("inventoryMsg", result.error.message); return; }
+        setMsg("inventoryMsg", "更新成功", "success");
+        resetInventoryForm(); await loadAllData(); return;
+      }
 
-      if (result.error) { setMsg("inventoryMsg", result.error.message); return; }
-      setMsg("inventoryMsg", editId ? "更新成功" : "新增成功", "success");
-      resetInventoryForm(); await loadAllData();
+      // 新增模式：相同商品名稱＋分類自動合併並重新算平均成本
+      const existing = state.inventory.find(x =>
+        (x.name || "").trim().toLowerCase() === name.toLowerCase() &&
+        (x.category || "").trim().toLowerCase() === category.toLowerCase()
+      );
+
+      if (existing) {
+        const oldStock = Number(existing.stock || 0);
+        const oldAvg = Number(existing.cost_twd || 0);
+        const newTotalStock = oldStock + stock;
+        const newAvgCost = newTotalStock > 0
+          ? ((oldStock * oldAvg) + (stock * cost_twd)) / newTotalStock
+          : cost_twd;
+
+        const mergedNote = [existing.note, note].filter(Boolean).join(" | ");
+
+        const result = await supabaseClient.from("inventory").update({
+          date,
+          stock: newTotalStock,
+          currency,
+          unit_cost,
+          exchange_rate,
+          cost_twd: Number(newAvgCost.toFixed(2)),
+          note: mergedNote
+        }).eq("id", existing.id).select();
+
+        if (result.error) { setMsg("inventoryMsg", result.error.message); return; }
+        setMsg("inventoryMsg", `已自動合併相同商品，最新平均成本：${nt(newAvgCost)}`, "success");
+      } else {
+        const payload = { date, name, category, stock, currency, unit_cost, exchange_rate, cost_twd, note };
+        const result = await supabaseClient.from("inventory").insert([payload]).select();
+        if (result.error) { setMsg("inventoryMsg", result.error.message); return; }
+        setMsg("inventoryMsg", "新增成功", "success");
+      }
+
+      resetInventoryForm();
+      await loadAllData();
     }
 
     async function editInventory(id) {
@@ -756,7 +761,7 @@
     function resetExpenseForm() {
       document.getElementById("expEditId").value = "";
       document.getElementById("expDate").value = todayStr();
-      document.getElementById("expCategory").value = "機票";
+      document.getElementById("expCategory").value = "";
       document.getElementById("expAmount").value = "";
       document.getElementById("expNote").value = "";
       setMsg("expensesMsg", "");
@@ -766,7 +771,7 @@
       setMsg("expensesMsg", "");
       const editId = document.getElementById("expEditId").value;
       const date = document.getElementById("expDate").value || null;
-      const category = document.getElementById("expCategory").value;
+      const category = document.getElementById("expCategory").value.trim();
       const amount = Number(document.getElementById("expAmount").value);
       const note = document.getElementById("expNote").value.trim();
 
@@ -785,7 +790,7 @@
       const row = state.expenses.find(x => x.id === id); if (!row) return;
       document.getElementById("expEditId").value = row.id;
       document.getElementById("expDate").value = row.date || todayStr();
-      document.getElementById("expCategory").value = row.category || "機票";
+      document.getElementById("expCategory").value = row.category || "";
       document.getElementById("expAmount").value = row.amount || "";
       document.getElementById("expNote").value = row.note || "";
       switchPage("expenses");
@@ -820,6 +825,9 @@
     document.getElementById("cancelInventoryEditBtn").addEventListener("click", resetInventoryForm);
     document.getElementById("cancelSaleEditBtn").addEventListener("click", resetSaleForm);
     document.getElementById("cancelExpenseEditBtn").addEventListener("click", resetExpenseForm);
+    document.getElementById("inventorySearch").addEventListener("input", renderInventory);
+    document.getElementById("salesSearch").addEventListener("input", renderSales);
+    document.getElementById("expensesSearch").addEventListener("input", renderExpenses);
 
     document.querySelectorAll(".nav-btn").forEach(btn => btn.addEventListener("click", () => switchPage(btn.dataset.page)));
 
