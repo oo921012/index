@@ -3,18 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title> 	 WBY庫存</title>
+  <title>Inventory System Pro Max</title>
 
   <link rel="icon" href="/favicon.ico">
-
   <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
-
   <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
   <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
-
+  <link rel="manifest" href="/site.webmanifest">
   <meta name="theme-color" content="#000000">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="WBY庫存">
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
@@ -160,7 +159,7 @@
       <p class="auth-sub">使用你在 Supabase 建立的管理員帳號登入。</p>
       <div>
         <label for="loginEmail">Email</label>
-        <input id="loginEmail" type="email" placeholder="oo921012@gmail.com" value="oo921012@gmail.com" />
+        <input id="loginEmail" type="email" placeholder="oo92101@gmail.com" value="oo92101@gmail.com" />
       </div>
       <div style="margin-top:12px;">
         <label for="loginPassword">Password</label>
@@ -179,7 +178,7 @@
 
   <div id="appView" class="app hidden">
     <aside class="sidebar">
-      <div class="brand">WBY庫存</div>
+      <div class="brand">System Pro Max</div>
       <button class="nav-btn active" data-page="dashboard">Dashboard</button>
       <button class="nav-btn" data-page="inventory">多幣別進貨</button>
       <button class="nav-btn" data-page="sales">銷售紀錄</button>
@@ -234,7 +233,6 @@
               <input id="purchaseHistorySearch" placeholder="搜尋進貨歷史" />
             </div>
 
-            <div id="inventoryTotalValue" style="margin-bottom:10px;font-weight:700;">庫存總值：NT$ 0</div>
             <div class="table-wrap" id="mergedInventoryWrap">
               <table>
                 <thead>
@@ -590,34 +588,29 @@
 
     function downloadWorkbook(filename, sheets) {
       const wb = XLSX.utils.book_new();
-
       for (const [sheetName, data] of Object.entries(sheets)) {
         const ws = XLSX.utils.json_to_sheet(data);
 
         if (data.length > 0) {
           const headers = Object.keys(data[0]);
-
           ws["!cols"] = headers.map((header) => {
-            if (header.includes("商品")) return { wch: 40 };
-            if (header.includes("備註")) return { wch: 50 };
-            if (header.includes("訂單")) return { wch: 24 };
-            return { wch: 18 };
-          });
+            let maxLen = String(header || "").length;
+            data.forEach((row) => {
+              const cell = row[header];
+              const len = String(cell ?? "").length;
+              if (len > maxLen) maxLen = len;
+            });
 
-          Object.keys(ws).forEach((cell) => {
-            if (cell[0] === "!") return;
-            ws[cell].s = {
-              alignment: {
-                wrapText: true,
-                vertical: "top"
-              }
-            };
+            // 商品 / 備註 / 訂單編號欄位給更寬
+            if (header.includes("商品")) return { wch: Math.min(Math.max(maxLen + 4, 24), 50) };
+            if (header.includes("備註")) return { wch: Math.min(Math.max(maxLen + 4, 20), 60) };
+            if (header.includes("訂單")) return { wch: Math.min(Math.max(maxLen + 4, 18), 28) };
+            return { wch: Math.min(Math.max(maxLen + 2, 12), 24) };
           });
         }
 
         XLSX.utils.book_append_sheet(wb, ws, sheetName);
       }
-
       XLSX.writeFile(wb, filename);
     }
 
@@ -779,13 +772,6 @@
           return (row.name || "").toLowerCase().includes(keyword) || (row.category || "").toLowerCase().includes(keyword);
         });
 
-      const totalValue = rows.reduce((sum, row) => {
-        return sum + (Number(row.stock || 0) * Number(row.cost_twd || 0));
-      }, 0);
-
-      document.getElementById("inventoryTotalValue").innerText =
-        "庫存總值：NT$ " + totalValue.toLocaleString("zh-TW");
-
       document.getElementById("inventoryBody").innerHTML =
         rows.map(row => `
           <tr>
@@ -851,15 +837,10 @@
       const rows = [...filteredRows].sort((a, b) => {
         const ao = a.order_no || `single-${a.id}`;
         const bo = b.order_no || `single-${b.id}`;
-        const aInfo = extractSizeInfo(a.product_name || "");
-        const bInfo = extractSizeInfo(b.product_name || "");
-
         return (
           ao.localeCompare(bo) ||
-          aInfo.baseName.localeCompare(bInfo.baseName) ||
-          aInfo.sizeOrder - bInfo.sizeOrder ||
-          (a.product_name || "").localeCompare(b.product_name || "") ||
-          (a.date || "").localeCompare(b.date || "")
+          (a.date || "").localeCompare(b.date || "") ||
+          (a.product_name || "").localeCompare(b.product_name || "")
         );
       });
 
