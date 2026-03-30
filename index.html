@@ -64,6 +64,19 @@
     .toolbar input { max-width: 280px; }
     .warning-box { background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412; padding: 14px 16px; border-radius: 16px; }
 
+    .sale-items { display:grid; gap:12px; }
+    .sale-item-row {
+      border:1px solid #e5e7eb; border-radius:16px; padding:12px; background:#fafafa;
+      display:grid; gap:10px;
+    }
+    .sale-item-grid { display:grid; grid-template-columns: 2fr 1fr 1fr auto; gap:10px; align-items:end; }
+    .sale-item-remove { width:auto; white-space:nowrap; }
+    @media (max-width: 700px) {
+      .sale-item-grid { grid-template-columns: 1fr; }
+      .sale-item-remove { width:100%; }
+    }
+
+
     .action-buttons { display:none; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
     .modal-backdrop {
       position: fixed; inset: 0; background: rgba(15,23,42,.55);
@@ -250,8 +263,8 @@
               <table>
                 <thead>
                   <tr>
-                    <th>日期</th><th>商品</th><th>數量</th><th>單價</th><th>總額</th><th>成本</th><th>毛利</th>
-                    <th>交易方式</th><th>後五碼</th><th>物流</th><th>備註</th><th>操作</th>
+                    <th>日期</th><th>訂單</th><th>商品</th><th>數量</th><th>單價</th><th>總額</th><th>成本</th><th>毛利</th>
+                    <th>出貨</th><th>結帳</th><th>交易方式</th><th>後五碼</th><th>物流</th><th>備註</th><th>操作</th>
                   </tr>
                 </thead>
                 <tbody id="salesBody"></tbody>
@@ -342,13 +355,9 @@
         <input type="hidden" id="saleEditId" />
         <input type="hidden" id="saleOriginalQty" />
         <input type="hidden" id="saleOriginalInventoryId" />
+
         <div class="row-3">
           <div><label>日期</label><input id="saleDate" type="date" /></div>
-          <div><label>商品</label><select id="saleProduct"></select></div>
-          <div><label>數量</label><input id="saleQty" type="number" min="1" placeholder="例如：1" /></div>
-        </div>
-        <div class="row-3">
-          <div><label>售價單價（台幣）</label><input id="salePrice" type="number" min="0" step="0.01" placeholder="例如：590" /></div>
           <div><label>交易方式</label>
             <select id="salePayment">
               <option value="匯款">匯款</option>
@@ -358,7 +367,8 @@
           </div>
           <div><label>匯款後五碼</label><input id="salePaymentCode" placeholder="匯款才填" /></div>
         </div>
-        <div class="row-3">
+
+        <div class="row-4">
           <div><label>物流方式</label>
             <select id="saleDelivery">
               <option value="店到店">店到店</option>
@@ -366,9 +376,35 @@
               <option value="面交">面交</option>
             </select>
           </div>
+          <div><label>出貨狀態</label>
+            <select id="saleShipmentStatus">
+              <option value="未出貨">未出貨</option>
+              <option value="已出貨">已出貨</option>
+            </select>
+          </div>
+          <div><label>結帳狀態</label>
+            <select id="salePaymentStatus">
+              <option value="未結帳">未結帳</option>
+              <option value="已結帳(全額或部分訂金)">已結帳(全額或部分訂金)</option>
+            </select>
+          </div>
           <div><label>備註</label><input id="saleNote" placeholder="可填客戶/平台/訂單" /></div>
-          <div><label>總額預覽</label><input id="saleTotalPreview" readonly /></div>
         </div>
+
+        <div>
+          <label>售出商品</label>
+          <div id="saleItems" class="sale-items"></div>
+          <div style="margin-top:10px;">
+            <button class="btn-secondary" id="addSaleItemRowBtn" type="button" style="width:auto;">＋ 新增商品</button>
+          </div>
+          <div class="notice">新增模式可一次售出多樣商品；編輯模式目前仍以單筆商品為主。</div>
+        </div>
+
+        <div class="row-2">
+          <div><label>總額預覽</label><input id="saleTotalPreview" readonly /></div>
+          <div></div>
+        </div>
+
         <div class="row-2">
           <button class="btn-primary" id="addSaleBtn">儲存銷售</button>
           <button class="btn-secondary" id="cancelSaleEditBtn" type="button">取消編輯</button>
@@ -378,7 +414,7 @@
     </div>
   </div>
 
-  <div id="expensesModal" class="modal-backdrop">
+  <div id="expensesModal"  <div id="expensesModal" class="modal-backdrop">
     <div class="modal-card">
       <div class="modal-header">
         <h3 class="modal-title">新增 / 編輯支出</h3>
@@ -580,12 +616,15 @@
     function exportSalesExcel() {
       const rows = [...state.sales].map(row => ({
         日期: row.date || "",
+        訂單編號: row.order_no || "",
         商品: row.product_name || "",
         數量: Number(row.qty || 0),
         單價台幣: Number(row.price || 0),
         總額台幣: Number(row.total || 0),
         成本台幣: Number(row.cost_twd || 0),
         毛利台幣: Number(row.total || 0) - Number(row.cost_twd || 0),
+        出貨狀態: row.shipment_status || "",
+        結帳狀態: row.payment_status || "",
         交易方式: row.payment_method || "",
         匯款後五碼: row.payment_code || "",
         物流方式: row.delivery_method || "",
@@ -604,6 +643,64 @@
       downloadWorkbook("營運支出.xlsx", { 營運支出: rows });
     }
 
+
+
+    function createOrderNo() {
+      return "SO" + new Date().toISOString().slice(0,10).replace(/-/g,"") + "-" + Math.random().toString(36).slice(2, 7).toUpperCase();
+    }
+
+    function saleProductOptionsHtml(selectedId = "") {
+      const rows = state.inventory.filter(x => Number(x.stock) > 0 || String(x.id) === String(selectedId));
+      if (!rows.length) return `<option value="">目前沒有可售商品</option>`;
+      return rows.map(row => `<option value="${row.id}" ${String(selectedId)===String(row.id) ? "selected" : ""}>${row.name}（庫存：${row.stock}）</option>`).join("");
+    }
+
+    function addSaleItemRow(prefill = {}) {
+      const wrap = document.getElementById("saleItems");
+      const row = document.createElement("div");
+      row.className = "sale-item-row";
+      row.innerHTML = `
+        <div class="sale-item-grid">
+          <div>
+            <label>商品</label>
+            <select class="sale-item-product">${saleProductOptionsHtml(prefill.productId || "")}</select>
+          </div>
+          <div>
+            <label>數量</label>
+            <input class="sale-item-qty" type="number" min="1" value="${prefill.qty || ""}" placeholder="數量" />
+          </div>
+          <div>
+            <label>售價單價（台幣）</label>
+            <input class="sale-item-price" type="number" min="0" step="0.01" value="${prefill.price || ""}" placeholder="單價" />
+          </div>
+          <button class="btn-danger sale-item-remove" type="button">刪除此商品</button>
+        </div>
+      `;
+      wrap.appendChild(row);
+
+      row.querySelector(".sale-item-remove").addEventListener("click", () => {
+        if (document.querySelectorAll("#saleItems .sale-item-row").length <= 1) {
+          row.querySelector(".sale-item-product").value = "";
+          row.querySelector(".sale-item-qty").value = "";
+          row.querySelector(".sale-item-price").value = "";
+        } else {
+          row.remove();
+        }
+        updateSalePreview();
+      });
+
+      row.querySelector(".sale-item-product").addEventListener("change", updateSalePreview);
+      row.querySelector(".sale-item-qty").addEventListener("input", updateSalePreview);
+      row.querySelector(".sale-item-price").addEventListener("input", updateSalePreview);
+    }
+
+    function collectSaleItems() {
+      return [...document.querySelectorAll("#saleItems .sale-item-row")].map(row => ({
+        productId: row.querySelector(".sale-item-product").value,
+        qty: Number(row.querySelector(".sale-item-qty").value || 0),
+        price: Number(row.querySelector(".sale-item-price").value || 0)
+      })).filter(x => x.productId || x.qty || x.price);
+    }
 
     function renderDashboard() {
       const revenue = state.sales.reduce((sum, x) => sum + Number(x.total || 0), 0);
@@ -646,12 +743,10 @@
           </tr>
         `).join("") || `<tr><td colspan="11">目前沒有庫存</td></tr>`;
 
-      const saleProduct = document.getElementById("saleProduct");
-      saleProduct.innerHTML = state.inventory
-        .filter(x => Number(x.stock) > 0)
-        .map(row => `<option value="${row.id}">${row.name}（庫存：${row.stock}）</option>`)
-        .join("");
-      if (!saleProduct.innerHTML) saleProduct.innerHTML = `<option value="">目前沒有可售商品</option>`;
+      document.querySelectorAll(".sale-item-product").forEach(select => {
+        const current = select.value;
+        select.innerHTML = saleProductOptionsHtml(current);
+      });
     }
 
 
@@ -687,19 +782,22 @@
       const keyword = (document.getElementById("salesSearch").value || "").trim().toLowerCase();
       const rows = state.sales.filter(row => {
         if (!keyword) return true;
-        return [row.product_name, row.note, row.payment_method, row.delivery_method].some(v => (v || "").toLowerCase().includes(keyword));
+        return [row.order_no, row.product_name, row.note, row.payment_method, row.delivery_method, row.shipment_status, row.payment_status].some(v => (v || "").toLowerCase().includes(keyword));
       });
 
       document.getElementById("salesBody").innerHTML =
         rows.map(row => `
           <tr>
             <td>${fmtDate(row.date)}</td>
+            <td>${row.order_no ?? ""}</td>
             <td>${row.product_name ?? ""}</td>
             <td>${row.qty ?? 0}</td>
             <td>${nt(row.price)}</td>
             <td>${nt(row.total)}</td>
             <td>${nt(row.cost_twd)}</td>
             <td>${nt(Number(row.total || 0) - Number(row.cost_twd || 0))}</td>
+            <td>${row.shipment_status ?? ""}</td>
+            <td>${row.payment_status ?? ""}</td>
             <td>${row.payment_method ?? ""}</td>
             <td>${row.payment_code ?? ""}</td>
             <td>${row.delivery_method ?? ""}</td>
@@ -709,7 +807,7 @@
               <button class="btn-danger btn-small" onclick="deleteSale('${row.id}')">刪除</button>
             </td>
           </tr>
-        `).join("") || `<tr><td colspan="12">目前沒有銷售資料</td></tr>`;
+        `).join("") || `<tr><td colspan="15">目前沒有銷售資料</td></tr>`;
     }
 
     function renderExpenses() {
@@ -924,21 +1022,19 @@
         normalizeText(x.category) === normalizeText(item.category)
       );
 
+      const { error: deleteErr } = await supabaseClient.from("purchase_history").delete().eq("id", id);
+      if (deleteErr) { setMsg("inventoryMsg", deleteErr.message); return; }
+
       if (inventoryItem) {
-        const currentStock = Number(inventoryItem.stock || 0);
-        const deleteStock = Number(item.stock || 0);
+        const { data: dbRemaining, error: remainErr } = await supabaseClient
+          .from("purchase_history")
+          .select("*")
+          .eq("name", item.name)
+          .eq("category", item.category);
 
-        if (deleteStock > currentStock) {
-          setMsg("inventoryMsg", "這筆歷史數量大於目前整合庫存，無法直接扣回，請先檢查資料。", "error");
-          return;
-        }
+        if (remainErr) { setMsg("inventoryMsg", remainErr.message); return; }
 
-        const relatedPurchases = state.purchases.filter(x =>
-          x.id !== id &&
-          normalizeText(x.name) === normalizeText(item.name) &&
-          normalizeText(x.category) === normalizeText(item.category)
-        );
-
+        const relatedPurchases = dbRemaining || [];
         const remainStock = relatedPurchases.reduce((s, x) => s + Number(x.stock || 0), 0);
 
         if (remainStock <= 0) {
@@ -949,13 +1045,14 @@
           const newAvgCost = totalCost / remainStock;
 
           const latestPurchase = [...relatedPurchases].sort((a, b) => {
-            const ad = (a.date || "") + (a.created_at || "");
-            const bd = (b.date || "") + (b.created_at || "");
+            const ad = `${a.date || ""}${a.created_at || ""}`;
+            const bd = `${b.date || ""}${b.created_at || ""}`;
             return bd.localeCompare(ad);
           })[0];
 
           const weightedUnitCostBase = relatedPurchases.reduce((s, x) => s + Number(x.stock || 0) * Number(x.unit_cost || 0), 0) / remainStock;
           const weightedExchangeRate = relatedPurchases.reduce((s, x) => s + Number(x.stock || 0) * Number(x.exchange_rate || 0), 0) / remainStock;
+          const mergedNote = relatedPurchases.map(x => (x.note || "").trim()).filter(Boolean).join(" | ");
 
           const { error: invUpdateErr } = await supabaseClient
             .from("inventory")
@@ -966,7 +1063,7 @@
               unit_cost: Number(weightedUnitCostBase.toFixed(4)),
               exchange_rate: Number(weightedExchangeRate.toFixed(6)),
               cost_twd: Number(newAvgCost.toFixed(2)),
-              note: latestPurchase?.note || inventoryItem.note
+              note: mergedNote || inventoryItem.note
             })
             .eq("id", inventoryItem.id);
 
@@ -974,10 +1071,7 @@
         }
       }
 
-      const { error } = await supabaseClient.from("purchase_history").delete().eq("id", id);
-      if (error) { setMsg("inventoryMsg", error.message); return; }
-
-      setMsg("inventoryMsg", "進貨歷史已刪除，整合後庫存與成本已同步重算", "success");
+      setMsg("inventoryMsg", "進貨歷史已刪除，整合後庫存與成本已重新計算", "success");
       await loadAllData();
     }
 
@@ -987,12 +1081,14 @@
       document.getElementById("saleOriginalQty").value = "";
       document.getElementById("saleOriginalInventoryId").value = "";
       document.getElementById("saleDate").value = todayStr();
-      document.getElementById("saleQty").value = "";
-      document.getElementById("salePrice").value = "";
       document.getElementById("salePayment").value = "匯款";
       document.getElementById("salePaymentCode").value = "";
       document.getElementById("saleDelivery").value = "店到店";
+      document.getElementById("saleShipmentStatus").value = "未出貨";
+      document.getElementById("salePaymentStatus").value = "未結帳";
       document.getElementById("saleNote").value = "";
+      document.getElementById("saleItems").innerHTML = "";
+      addSaleItemRow();
       updateSalePreview();
       setMsg("salesMsg", "");
     }
@@ -1001,59 +1097,107 @@
       setMsg("salesMsg", "");
       const editId = document.getElementById("saleEditId").value;
       const date = document.getElementById("saleDate").value || null;
-      const productId = document.getElementById("saleProduct").value;
-      const qty = Number(document.getElementById("saleQty").value);
-      const price = Number(document.getElementById("salePrice").value);
       const payment_method = document.getElementById("salePayment").value;
       const payment_code = document.getElementById("salePaymentCode").value.trim();
       const delivery_method = document.getElementById("saleDelivery").value;
+      const shipment_status = document.getElementById("saleShipmentStatus").value;
+      const payment_status = document.getElementById("salePaymentStatus").value;
       const note = document.getElementById("saleNote").value.trim();
       const originalQty = Number(document.getElementById("saleOriginalQty").value || 0);
       const originalInventoryId = document.getElementById("saleOriginalInventoryId").value;
+      const items = collectSaleItems();
 
-      if (!date || !productId || qty <= 0 || price < 0) { setMsg("salesMsg", "請完整填寫銷售資料"); return; }
+      if (!date || items.length === 0) { setMsg("salesMsg", "請完整填寫銷售資料"); return; }
       if (payment_method === "匯款" && payment_code && !/^\d{5}$/.test(payment_code)) { setMsg("salesMsg", "匯款後五碼需為5位數"); return; }
 
-      const item = state.inventory.find(x => x.id === productId);
-      if (!item) { setMsg("salesMsg", "找不到商品"); return; }
-
-      let availableStock = Number(item.stock);
-      if (editId && originalInventoryId === productId) availableStock += originalQty;
-      if (availableStock < qty) { setMsg("salesMsg", `庫存不足，目前可用 ${availableStock}`); return; }
-
-      const total = qty * price;
-      const cost_twd = Number(item.cost_twd || 0) * qty;
-
       if (editId) {
+        if (items.length !== 1) {
+          setMsg("salesMsg", "編輯模式目前只能保留一項商品。");
+          return;
+        }
+        const line = items[0];
+        const item = state.inventory.find(x => x.id === line.productId);
+        if (!item) { setMsg("salesMsg", "找不到商品"); return; }
+
+        let availableStock = Number(item.stock);
+        if (originalInventoryId === line.productId) availableStock += originalQty;
+        if (availableStock < line.qty) { setMsg("salesMsg", `庫存不足，目前可用 ${availableStock}`); return; }
+
         if (originalInventoryId) {
           const oldItem = state.inventory.find(x => x.id === originalInventoryId);
           if (oldItem) {
             await supabaseClient.from("inventory").update({ stock: Number(oldItem.stock) + originalQty }).eq("id", oldItem.id);
           }
         }
-        const refreshedNewItem = state.inventory.find(x => x.id === productId);
-        await supabaseClient.from("inventory").update({ stock: Number(refreshedNewItem.stock) - qty }).eq("id", productId);
+
+        await supabaseClient.from("inventory").update({ stock: Number(item.stock) - line.qty }).eq("id", item.id);
 
         const { error } = await supabaseClient.from("sales").update({
-          date, inventory_id: productId, product_name: item.name, qty, price, total, cost_twd,
-          payment_method, payment_code, delivery_method, note
+          inventory_id: line.productId,
+          product_name: item.name,
+          qty: line.qty,
+          price: line.price,
+          total: line.qty * line.price,
+          cost_twd: Number(item.cost_twd || 0) * line.qty,
+          date,
+          payment_method,
+          payment_code,
+          delivery_method,
+          shipment_status,
+          payment_status,
+          note
         }).eq("id", editId).select();
 
         if (error) { setMsg("salesMsg", error.message); return; }
+
         setMsg("salesMsg", "更新成功", "success");
-      } else {
-        const { error: updateErr } = await supabaseClient.from("inventory").update({ stock: Number(item.stock) - qty }).eq("id", item.id);
-        if (updateErr) { setMsg("salesMsg", updateErr.message); return; }
-
-        const { error: insertErr } = await supabaseClient.from("sales").insert([{
-          date, inventory_id: item.id, product_name: item.name, qty, price, total, cost_twd,
-          payment_method, payment_code, delivery_method, note
-        }]).select();
-
-        if (insertErr) { setMsg("salesMsg", insertErr.message); return; }
-        setMsg("salesMsg", "銷售新增成功", "success");
+        resetSaleForm(); closeModal("salesModal"); await loadAllData();
+        return;
       }
 
+      const orderNo = createOrderNo();
+      const updates = [];
+      const inserts = [];
+
+      for (const line of items) {
+        if (!line.productId || line.qty <= 0 || line.price < 0) {
+          setMsg("salesMsg", "請確認每一項商品都有商品、數量與單價");
+          return;
+        }
+        const item = state.inventory.find(x => x.id === line.productId);
+        if (!item) { setMsg("salesMsg", "有商品不存在"); return; }
+        if (Number(item.stock || 0) < line.qty) {
+          setMsg("salesMsg", `${item.name} 庫存不足，目前可用 ${item.stock}`);
+          return;
+        }
+        updates.push({ id: item.id, stock: Number(item.stock) - line.qty });
+        inserts.push({
+          order_no: orderNo,
+          inventory_id: item.id,
+          product_name: item.name,
+          qty: line.qty,
+          price: line.price,
+          total: line.qty * line.price,
+          cost_twd: Number(item.cost_twd || 0) * line.qty,
+          date,
+          payment_method,
+          payment_code,
+          delivery_method,
+          shipment_status,
+          payment_status,
+          note
+        });
+      }
+
+      for (const u of updates) {
+        const { error } = await supabaseClient.from("inventory").update({ stock: u.stock }).eq("id", u.id);
+        if (error) { setMsg("salesMsg", error.message); return; }
+      }
+
+      const { error: insertErr } = await supabaseClient.from("sales").insert(inserts).select();
+      if (insertErr) { setMsg("salesMsg", insertErr.message); return; }
+
+      setMsg("salesMsg", "銷售新增成功", "success");
       resetSaleForm(); closeModal("salesModal"); await loadAllData();
     }
 
@@ -1063,13 +1207,18 @@
       document.getElementById("saleOriginalQty").value = row.qty || 0;
       document.getElementById("saleOriginalInventoryId").value = row.inventory_id || "";
       document.getElementById("saleDate").value = row.date || todayStr();
-      document.getElementById("saleProduct").value = row.inventory_id || "";
-      document.getElementById("saleQty").value = row.qty || "";
-      document.getElementById("salePrice").value = row.price || "";
       document.getElementById("salePayment").value = row.payment_method || "匯款";
       document.getElementById("salePaymentCode").value = row.payment_code || "";
       document.getElementById("saleDelivery").value = row.delivery_method || "店到店";
+      document.getElementById("saleShipmentStatus").value = row.shipment_status || "未出貨";
+      document.getElementById("salePaymentStatus").value = row.payment_status || "未結帳";
       document.getElementById("saleNote").value = row.note || "";
+      document.getElementById("saleItems").innerHTML = "";
+      addSaleItemRow({
+        productId: row.inventory_id || "",
+        qty: row.qty || "",
+        price: row.price || ""
+      });
       updateSalePreview(); switchPage("sales"); openModal("salesModal");
     }
 
@@ -1130,11 +1279,9 @@
     }
 
     function updateSalePreview() {
-      const qty = Number(document.getElementById("saleQty").value || 0);
-      const price = Number(document.getElementById("salePrice").value || 0);
-      document.getElementById("saleTotalPreview").value = nt(qty * price);
+      const total = collectSaleItems().reduce((sum, x) => sum + (Number(x.qty || 0) * Number(x.price || 0)), 0);
+      document.getElementById("saleTotalPreview").value = nt(total);
     }
-
 
     const fabMain = document.getElementById("fabMain");
     const fabInventory = document.getElementById("fabInventory");
@@ -1172,8 +1319,7 @@
     fabInventory.addEventListener("click", () => { resetInventoryForm(); openModal("inventoryModal"); toggleFab(false); });
     fabSales.addEventListener("click", () => { resetSaleForm(); openModal("salesModal"); toggleFab(false); });
     fabExpenses.addEventListener("click", () => { resetExpenseForm(); openModal("expensesModal"); toggleFab(false); });
-    document.getElementById("saleQty").addEventListener("input", updateSalePreview);
-    document.getElementById("salePrice").addEventListener("input", updateSalePreview);
+    document.getElementById("addSaleItemRowBtn").addEventListener("click", () => { addSaleItemRow(); updateSalePreview(); });
     document.getElementById("invCurrency").addEventListener("change", computeCostTwd);
     document.getElementById("invUnitCost").addEventListener("input", computeCostTwd);
     document.getElementById("invExchangeRate").addEventListener("input", computeCostTwd);
