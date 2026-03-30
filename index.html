@@ -61,6 +61,21 @@
     .toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
     .toolbar input { max-width: 280px; }
     .warning-box { background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412; padding: 14px 16px; border-radius: 16px; }
+
+    .action-buttons { display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(15,23,42,.55);
+      display: none; align-items: center; justify-content: center; padding: 20px; z-index: 2000;
+    }
+    .modal-backdrop.show { display:flex; }
+    .modal-card {
+      width: 100%; max-width: 760px; max-height: 90vh; overflow:auto;
+      background:#fff; border-radius:24px; padding:22px; box-shadow:0 24px 80px rgba(15,23,42,.25);
+      border:1px solid #e5e7eb;
+    }
+    .modal-header { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px; }
+    .modal-title { font-size:22px; font-weight:800; margin:0; }
+    .icon-btn { width:auto; padding:10px 14px; border-radius:12px; background:#f3f4f6; color:#111827; }
     @media (max-width: 1200px) {
       .grid.cols-4 { grid-template-columns: repeat(2, 1fr); }
       .grid.cols-3 { grid-template-columns: 1fr; }
@@ -82,7 +97,7 @@
       <p class="auth-sub">使用你在 Supabase 建立的管理員帳號登入。</p>
       <div>
         <label for="loginEmail">Email</label>
-        <input id="loginEmail" type="email" placeholder="oo92101@gmail.com" value="oo92101@gmail.com" />
+        <input id="loginEmail" type="email" placeholder="oo921012@gmail.com" value="oo921012@gmail.com" />
       </div>
       <div style="margin-top:12px;">
         <label for="loginPassword">Password</label>
@@ -118,7 +133,12 @@
           <h2 class="page-title" id="pageTitle">Dashboard</h2>
           <div class="muted">Supabase｜日期＋多幣別＋關鍵字提醒＋平均成本自動合併</div>
         </div>
-        <button class="btn-secondary" id="refreshBtn" style="max-width:160px;">重新整理資料</button>
+        <div class="action-buttons">
+          <button class="btn-primary" id="openInventoryModalBtn" style="width:auto;">新增進貨</button>
+          <button class="btn-primary" id="openSalesModalBtn" style="width:auto;">新增銷售</button>
+          <button class="btn-primary" id="openExpensesModalBtn" style="width:auto;">新增支出</button>
+          <button class="btn-secondary" id="refreshBtn" style="width:auto;">重新整理資料</button>
+        </div>
       </div>
 
       <section id="page-dashboard" class="page">
@@ -161,40 +181,10 @@
       <section id="page-inventory" class="page hidden">
         <div class="grid cols-2">
           <div class="card">
-            <h3 class="section-title">新增 / 編輯進貨</h3>
-            <div class="form-grid">
-              <input type="hidden" id="invEditId" />
-              <div class="row-3">
-                <div><label>進貨日期</label><input id="invDate" type="date" /></div>
-                <div><label>商品名稱</label><input id="invName" list="nameSuggestions" placeholder="例如：襪子" /><datalist id="nameSuggestions"></datalist></div>
-                <div><label>分類</label><input id="invCategory" list="categorySuggestions" placeholder="例如：服飾" /><datalist id="categorySuggestions"></datalist></div>
-              </div>
-              <div class="row-4">
-                <div><label>庫存數量</label><input id="invStock" type="number" min="1" placeholder="例如：20" /></div>
-                <div><label>幣別</label>
-                  <select id="invCurrency">
-                    <option value="TWD">台幣 TWD</option>
-                    <option value="JPY">日幣 JPY</option>
-                    <option value="KRW">韓元 KRW</option>
-                    <option value="THB">泰銖 THB</option>
-                    <option value="USD">美元 USD</option>
-                    <option value="CNY">人民幣 CNY</option>
-                  </select>
-                </div>
-                <div><label>原始單價</label><input id="invUnitCost" type="number" min="0" step="0.01" placeholder="例如：500" /></div>
-                <div><label>匯率（1外幣=幾台幣）</label><input id="invExchangeRate" type="number" min="0" step="0.0001" value="1" /></div>
-              </div>
-              <div class="row-3">
-                <div><label>平均成本（台幣）</label><input id="invCost" type="number" min="0" step="0.01" placeholder="自動計算，可手動覆蓋" /></div>
-                <div><label>備註</label><input id="invNote" placeholder="來源/款式/批次" /></div>
-                <div><label>本批總成本（台幣）</label><input id="invTotalCostPreview" readonly /></div>
-              </div>
-              <div class="notice">相同商品名稱＋相同分類會自動合併，並用加權平均重新計算成本。</div>
-              <div class="row-2">
-                <button class="btn-primary" id="addInventoryBtn">儲存進貨</button>
-                <button class="btn-secondary" id="cancelInventoryEditBtn" type="button">取消編輯</button>
-              </div>
-              <div id="inventoryMsg"></div>
+            <h3 class="section-title">進貨操作</h3>
+            <div class="notice">按右上角「新增進貨」開啟表單，版面會更乾淨。</div>
+            <div style="margin-top:12px;">
+              <button class="btn-primary" id="openInventoryModalBtn2" style="width:auto;">新增進貨</button>
             </div>
           </div>
 
@@ -221,43 +211,10 @@
       <section id="page-sales" class="page hidden">
         <div class="grid cols-2">
           <div class="card">
-            <h3 class="section-title">新增 / 編輯銷售</h3>
-            <div class="form-grid">
-              <input type="hidden" id="saleEditId" />
-              <input type="hidden" id="saleOriginalQty" />
-              <input type="hidden" id="saleOriginalInventoryId" />
-              <div class="row-3">
-                <div><label>日期</label><input id="saleDate" type="date" /></div>
-                <div><label>商品</label><select id="saleProduct"></select></div>
-                <div><label>數量</label><input id="saleQty" type="number" min="1" placeholder="例如：1" /></div>
-              </div>
-              <div class="row-3">
-                <div><label>售價單價（台幣）</label><input id="salePrice" type="number" min="0" step="0.01" placeholder="例如：590" /></div>
-                <div><label>交易方式</label>
-                  <select id="salePayment">
-                    <option value="匯款">匯款</option>
-                    <option value="貨到付款">貨到付款</option>
-                    <option value="現金">現金</option>
-                  </select>
-                </div>
-                <div><label>匯款後五碼</label><input id="salePaymentCode" placeholder="匯款才填" /></div>
-              </div>
-              <div class="row-3">
-                <div><label>物流方式</label>
-                  <select id="saleDelivery">
-                    <option value="店到店">店到店</option>
-                    <option value="宅配">宅配</option>
-                    <option value="面交">面交</option>
-                  </select>
-                </div>
-                <div><label>備註</label><input id="saleNote" placeholder="可填客戶/平台/訂單" /></div>
-                <div><label>總額預覽</label><input id="saleTotalPreview" readonly /></div>
-              </div>
-              <div class="row-2">
-                <button class="btn-primary" id="addSaleBtn">儲存銷售</button>
-                <button class="btn-secondary" id="cancelSaleEditBtn" type="button">取消編輯</button>
-              </div>
-              <div id="salesMsg"></div>
+            <h3 class="section-title">銷售操作</h3>
+            <div class="notice">按右上角「新增銷售」開啟表單，避免版面太亂。</div>
+            <div style="margin-top:12px;">
+              <button class="btn-primary" id="openSalesModalBtn2" style="width:auto;">新增銷售</button>
             </div>
           </div>
 
@@ -284,31 +241,10 @@
       <section id="page-expenses" class="page hidden">
         <div class="grid cols-2">
           <div class="card">
-            <h3 class="section-title">新增 / 編輯支出</h3>
-            <div class="form-grid">
-              <input type="hidden" id="expEditId" />
-              <div class="row-3">
-                <div><label>日期</label><input id="expDate" type="date" /></div>
-                <div><label>類別</label>
-                  <input id="expCategory" list="expenseCategorySuggestions" placeholder="例如：機票" />
-                  <datalist id="expenseCategorySuggestions">
-                    <option value="機票"></option>
-                    <option value="住宿"></option>
-                    <option value="國際運費"></option>
-                    <option value="台灣物流"></option>
-                    <option value="包材"></option>
-                    <option value="手續費"></option>
-                    <option value="其他"></option>
-                  </datalist>
-                </div>
-                <div><label>金額</label><input id="expAmount" type="number" min="0" step="0.01" placeholder="例如：1200" /></div>
-              </div>
-              <div><label>備註</label><textarea id="expNote" placeholder="可填來源、航班、物流單號等"></textarea></div>
-              <div class="row-2">
-                <button class="btn-primary" id="addExpenseBtn">儲存支出</button>
-                <button class="btn-secondary" id="cancelExpenseEditBtn" type="button">取消編輯</button>
-              </div>
-              <div id="expensesMsg"></div>
+            <h3 class="section-title">支出操作</h3>
+            <div class="notice">按右上角「新增支出」開啟表單，填完自動回到清單。</div>
+            <div style="margin-top:12px;">
+              <button class="btn-primary" id="openExpensesModalBtn2" style="width:auto;">新增支出</button>
             </div>
           </div>
 
@@ -329,6 +265,130 @@
     </main>
   </div>
 
+
+  <div id="inventoryModal" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">新增 / 編輯進貨</h3>
+        <button class="icon-btn" type="button" onclick="closeModal('inventoryModal')">關閉</button>
+      </div>
+      <div class="form-grid">
+        <input type="hidden" id="invEditId" />
+        <div class="row-3">
+          <div><label>進貨日期</label><input id="invDate" type="date" /></div>
+          <div><label>商品名稱</label><input id="invName" list="nameSuggestions" placeholder="例如：襪子" /><datalist id="nameSuggestions"></datalist></div>
+          <div><label>分類</label><input id="invCategory" list="categorySuggestions" placeholder="例如：服飾" /><datalist id="categorySuggestions"></datalist></div>
+        </div>
+        <div class="row-4">
+          <div><label>庫存數量</label><input id="invStock" type="number" min="1" placeholder="例如：20" /></div>
+          <div><label>幣別</label>
+            <select id="invCurrency">
+              <option value="TWD">台幣 TWD</option>
+              <option value="JPY">日幣 JPY</option>
+              <option value="KRW">韓元 KRW</option>
+              <option value="THB">泰銖 THB</option>
+              <option value="USD">美元 USD</option>
+              <option value="CNY">人民幣 CNY</option>
+            </select>
+          </div>
+          <div><label>原始單價</label><input id="invUnitCost" type="number" min="0" step="0.01" placeholder="例如：500" /></div>
+          <div><label>匯率（1外幣=幾台幣）</label><input id="invExchangeRate" type="number" min="0" step="0.0001" value="1" /></div>
+        </div>
+        <div class="row-3">
+          <div><label>平均成本（台幣）</label><input id="invCost" type="number" min="0" step="0.01" placeholder="自動計算，可手動覆蓋" /></div>
+          <div><label>備註</label><input id="invNote" placeholder="來源/款式/批次" /></div>
+          <div><label>本批總成本（台幣）</label><input id="invTotalCostPreview" readonly /></div>
+        </div>
+        <div class="notice">相同商品名稱＋相同分類會自動合併，並用加權平均重新計算成本。</div>
+        <div class="row-2">
+          <button class="btn-primary" id="addInventoryBtn">儲存進貨</button>
+          <button class="btn-secondary" id="cancelInventoryEditBtn" type="button">取消編輯</button>
+        </div>
+        <div id="inventoryMsg"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="salesModal" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">新增 / 編輯銷售</h3>
+        <button class="icon-btn" type="button" onclick="closeModal('salesModal')">關閉</button>
+      </div>
+      <div class="form-grid">
+        <input type="hidden" id="saleEditId" />
+        <input type="hidden" id="saleOriginalQty" />
+        <input type="hidden" id="saleOriginalInventoryId" />
+        <div class="row-3">
+          <div><label>日期</label><input id="saleDate" type="date" /></div>
+          <div><label>商品</label><select id="saleProduct"></select></div>
+          <div><label>數量</label><input id="saleQty" type="number" min="1" placeholder="例如：1" /></div>
+        </div>
+        <div class="row-3">
+          <div><label>售價單價（台幣）</label><input id="salePrice" type="number" min="0" step="0.01" placeholder="例如：590" /></div>
+          <div><label>交易方式</label>
+            <select id="salePayment">
+              <option value="匯款">匯款</option>
+              <option value="貨到付款">貨到付款</option>
+              <option value="現金">現金</option>
+            </select>
+          </div>
+          <div><label>匯款後五碼</label><input id="salePaymentCode" placeholder="匯款才填" /></div>
+        </div>
+        <div class="row-3">
+          <div><label>物流方式</label>
+            <select id="saleDelivery">
+              <option value="店到店">店到店</option>
+              <option value="宅配">宅配</option>
+              <option value="面交">面交</option>
+            </select>
+          </div>
+          <div><label>備註</label><input id="saleNote" placeholder="可填客戶/平台/訂單" /></div>
+          <div><label>總額預覽</label><input id="saleTotalPreview" readonly /></div>
+        </div>
+        <div class="row-2">
+          <button class="btn-primary" id="addSaleBtn">儲存銷售</button>
+          <button class="btn-secondary" id="cancelSaleEditBtn" type="button">取消編輯</button>
+        </div>
+        <div id="salesMsg"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="expensesModal" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">新增 / 編輯支出</h3>
+        <button class="icon-btn" type="button" onclick="closeModal('expensesModal')">關閉</button>
+      </div>
+      <div class="form-grid">
+        <input type="hidden" id="expEditId" />
+        <div class="row-3">
+          <div><label>日期</label><input id="expDate" type="date" /></div>
+          <div><label>類別</label>
+            <input id="expCategory" list="expenseCategorySuggestions" placeholder="例如：機票" />
+            <datalist id="expenseCategorySuggestions">
+              <option value="機票"></option>
+              <option value="住宿"></option>
+              <option value="國際運費"></option>
+              <option value="台灣物流"></option>
+              <option value="包材"></option>
+              <option value="手續費"></option>
+              <option value="其他"></option>
+            </datalist>
+          </div>
+          <div><label>金額</label><input id="expAmount" type="number" min="0" step="0.01" placeholder="例如：1200" /></div>
+        </div>
+        <div><label>備註</label><textarea id="expNote" placeholder="可填來源、航班、物流單號等"></textarea></div>
+        <div class="row-2">
+          <button class="btn-primary" id="addExpenseBtn">儲存支出</button>
+          <button class="btn-secondary" id="cancelExpenseEditBtn" type="button">取消編輯</button>
+        </div>
+        <div id="expensesMsg"></div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const SUPABASE_URL = "https://kamzjheicwjycifknrgo.supabase.co";
     const SUPABASE_KEY = "sb_publishable_KKkxJ1gTuyNe2_OvClbyiQ_kJ8-d0vh";
@@ -346,6 +406,10 @@
     function setMsg(id, text, type="error") { const el = document.getElementById(id); el.className = type; el.textContent = text || ""; }
     function clearMsgs() { ["inventoryMsg","salesMsg","expensesMsg","authMsg"].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=""; }); }
     function todayStr() { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+
+
+    function openModal(id) { document.getElementById(id).classList.add("show"); }
+    function closeModal(id) { document.getElementById(id).classList.remove("show"); }
 
     function switchPage(page) {
       document.querySelectorAll(".page").forEach(p => p.classList.add("hidden"));
@@ -590,7 +654,7 @@
         const result = await supabaseClient.from("inventory").update(payload).eq("id", editId).select();
         if (result.error) { setMsg("inventoryMsg", result.error.message); return; }
         setMsg("inventoryMsg", "更新成功", "success");
-        resetInventoryForm(); await loadAllData(); return;
+        resetInventoryForm(); closeModal("inventoryModal"); await loadAllData(); return;
       }
 
       // 新增模式：相同商品名稱＋分類自動合併並重新算平均成本
@@ -629,6 +693,7 @@
       }
 
       resetInventoryForm();
+      closeModal("inventoryModal");
       await loadAllData();
     }
 
@@ -644,7 +709,7 @@
       document.getElementById("invExchangeRate").value = item.exchange_rate || 1;
       document.getElementById("invCost").value = item.cost_twd || "";
       document.getElementById("invNote").value = item.note || "";
-      computeCostTwd(); switchPage("inventory");
+      computeCostTwd(); switchPage("inventory"); openModal("inventoryModal");
     }
 
     async function deleteInventory(id) {
@@ -729,7 +794,7 @@
         setMsg("salesMsg", "銷售新增成功", "success");
       }
 
-      resetSaleForm(); await loadAllData();
+      resetSaleForm(); closeModal("salesModal"); await loadAllData();
     }
 
     async function editSale(id) {
@@ -745,7 +810,7 @@
       document.getElementById("salePaymentCode").value = row.payment_code || "";
       document.getElementById("saleDelivery").value = row.delivery_method || "店到店";
       document.getElementById("saleNote").value = row.note || "";
-      updateSalePreview(); switchPage("sales");
+      updateSalePreview(); switchPage("sales"); openModal("salesModal");
     }
 
     async function deleteSale(id) {
@@ -783,7 +848,7 @@
 
       if (result.error) { setMsg("expensesMsg", result.error.message); return; }
       setMsg("expensesMsg", editId ? "更新成功" : "支出新增成功", "success");
-      resetExpenseForm(); await loadAllData();
+      resetExpenseForm(); closeModal("expensesModal"); await loadAllData();
     }
 
     async function editExpense(id) {
@@ -793,7 +858,7 @@
       document.getElementById("expCategory").value = row.category || "";
       document.getElementById("expAmount").value = row.amount || "";
       document.getElementById("expNote").value = row.note || "";
-      switchPage("expenses");
+      switchPage("expenses"); openModal("expensesModal");
     }
 
     async function deleteExpense(id) {
@@ -816,15 +881,21 @@
     document.getElementById("addSaleBtn").addEventListener("click", addSale);
     document.getElementById("addExpenseBtn").addEventListener("click", addExpense);
     document.getElementById("refreshBtn").addEventListener("click", loadAllData);
+    document.getElementById("openInventoryModalBtn").addEventListener("click", () => { resetInventoryForm(); openModal("inventoryModal"); });
+    document.getElementById("openSalesModalBtn").addEventListener("click", () => { resetSaleForm(); openModal("salesModal"); });
+    document.getElementById("openExpensesModalBtn").addEventListener("click", () => { resetExpenseForm(); openModal("expensesModal"); });
+    document.getElementById("openInventoryModalBtn2").addEventListener("click", () => { resetInventoryForm(); openModal("inventoryModal"); });
+    document.getElementById("openSalesModalBtn2").addEventListener("click", () => { resetSaleForm(); openModal("salesModal"); });
+    document.getElementById("openExpensesModalBtn2").addEventListener("click", () => { resetExpenseForm(); openModal("expensesModal"); });
     document.getElementById("saleQty").addEventListener("input", updateSalePreview);
     document.getElementById("salePrice").addEventListener("input", updateSalePreview);
     document.getElementById("invCurrency").addEventListener("change", computeCostTwd);
     document.getElementById("invUnitCost").addEventListener("input", computeCostTwd);
     document.getElementById("invExchangeRate").addEventListener("input", computeCostTwd);
     document.getElementById("invStock").addEventListener("input", computeCostTwd);
-    document.getElementById("cancelInventoryEditBtn").addEventListener("click", resetInventoryForm);
-    document.getElementById("cancelSaleEditBtn").addEventListener("click", resetSaleForm);
-    document.getElementById("cancelExpenseEditBtn").addEventListener("click", resetExpenseForm);
+    document.getElementById("cancelInventoryEditBtn").addEventListener("click", () => { resetInventoryForm(); closeModal("inventoryModal"); });
+    document.getElementById("cancelSaleEditBtn").addEventListener("click", () => { resetSaleForm(); closeModal("salesModal"); });
+    document.getElementById("cancelExpenseEditBtn").addEventListener("click", () => { resetExpenseForm(); closeModal("expensesModal"); });
     document.getElementById("inventorySearch").addEventListener("input", renderInventory);
     document.getElementById("salesSearch").addEventListener("input", renderSales);
     document.getElementById("expensesSearch").addEventListener("input", renderExpenses);
@@ -854,6 +925,7 @@
     window.editExpense = editExpense;
     window.deleteExpense = deleteExpense;
     window.resetLogin = resetLogin;
+    window.closeModal = closeModal;
   </script>
 </body>
 </html>
