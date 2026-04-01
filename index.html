@@ -200,6 +200,7 @@
           <button class="btn-secondary" id="exportSalesBtn" style="width:auto;">匯出銷售</button>
           <button class="btn-secondary" id="exportExpensesBtn" style="width:auto;">匯出支出</button>
           <button class="btn-secondary" id="refreshBtn" style="width:auto;">重新整理資料</button>
+          <button class="btn-danger" id="syncAllSalesCostsBtn" style="width:auto;">重算全部舊銷售成本</button>
         </div>
       </div>
 
@@ -480,6 +481,7 @@
     const authMsg = document.getElementById("authMsg");
     const currentUserBox = document.getElementById("currentUserBox");
     const state = { inventory: [], sales: [], expenses: [], purchases: [] };
+    const saleSubmitState = { inFlight: false, lastFingerprint: "", lastSubmittedAt: 0 };
 
     function nt(n) { return "NT$ " + Number(n || 0).toLocaleString("zh-TW", { maximumFractionDigits: 2 }); }
     function fmtDate(v) { return v || "-"; }
@@ -521,8 +523,27 @@
       }
     }
 
+    function getPurchaseAggregateForProduct(name, category) {
+      const matched = state.purchases.filter(row =>
+        normalizeText(row.name) === normalizeText(name) &&
+        normalizeText(row.category) === normalizeText(category)
+      );
+
+      const totalQty = matched.reduce((sum, row) => sum + Number(row.stock || 0), 0);
+      const totalCost = matched.reduce((sum, row) => sum + (Number(row.stock || 0) * Number(row.cost_twd || 0)), 0);
+      const avgCost = totalQty > 0 ? Number((totalCost / totalQty).toFixed(2)) : 0;
+
+      return { matched, totalQty, totalCost, avgCost };
+    }
+
+    function getDisplayedAvgCost(row) {
+      const aggregate = getPurchaseAggregateForProduct(row.name, row.category);
+      if (aggregate.totalQty > 0) return aggregate.avgCost;
+      return Number(row.cost_twd || 0);
+    }
+
     function calculateInventoryTwd() {
-      return state.inventory.reduce((sum, row) => sum + (Number(row.stock || 0) * Number(row.cost_twd || 0)), 0);
+      return state.inventory.reduce((sum, row) => sum + (Number(row.stock || 0) * getDisplayedAvgCost(row)), 0);
     }
 
     function updateSuggestions() {
@@ -620,18 +641,24 @@
     }
 
     function exportInventoryExcel() {
-      const rows = sortInventoryRows(state.inventory).map(row => ({
-        日期: row.date || "",
-        商品: row.name || "",
-        分類: row.category || "",
-        庫存: Number(row.stock || 0),
-        幣別: row.currency || "TWD",
-        原始單價: Number(row.unit_cost || 0),
-        匯率: Number(row.exchange_rate || 0),
-        平均成本台幣: Number(row.cost_twd || 0),
-        庫存價值台幣: Number(row.stock || 0) * Number(row.cost_twd || 0),
-        備註: row.note || ""
-      }));
+      const rows = sortInventoryRows(state.inventory).map(row => {
+        const displayAvgCost = getDisplayedAvgCost(row);
+        const aggregate = getPurchaseAggregateForProduct(row.name, row.category);
+        return {
+          日期: row.date || "",
+          商品: row.name || "",
+          分類: row.category || "",
+          庫存: Number(row.stock || 0),
+          幣別: row.currency || "TWD",
+          原始單價: Number(row.unit_cost || 0),
+          匯率: Number(row.exchange_rate || 0),
+          平均成本台幣: displayAvgCost,
+          庫存價值台幣: Number(row.stock || 0) * displayAvgCost,
+          進貨歷史總數量: Number(aggregate.totalQty || 0),
+          進貨歷史總成本台幣: Number(aggregate.totalCost || 0),
+          備註: row.note || ""
+        };
+      });
       downloadWorkbook("整合庫存.xlsx", { 整合庫存: rows });
     }
 
@@ -685,6 +712,49 @@
 
     function createOrderNo() {
       return "SO" + new Date().toISOString().slice(0,10).replace(/-/g,"") + "-" + Math.random().toString(36).slice(2, 7).toUpperCase();
+    }
+
+    function buildSaleFingerprint(payload) {
+      const normalizedItems = [...(payload.items || [])]
+        .map(item => ({
+          productId: String(item.productId || ""),
+          qty: Number(item.qty || 0),
+          price: Number(item.price || 0)
+        }))
+        .sort((a, b) => String(a.productId).localeCompare(String(b.productId)) || a.price - b.price || a.qty - b.qty);
+
+      return JSON.stringify({
+        date: payload.date || "",
+        payment_method: payload.payment_method || "",
+        payment_code: payload.payment_code || "",
+        delivery_method: payload.delivery_method || "",
+        shipment_status: payload.shipment_status || "",
+        payment_status: payload.payment_status || "",
+        note: payload.note || "",
+        items: normalizedItems
+      });
+    }
+
+    function setSaleSubmitLoading(isLoading) {
+      const btn = document.getElementById("addSaleBtn");
+      if (!btn) return;
+      btn.disabled = !!isLoading;
+      btn.textContent = isLoading ? "儲存中，請勿重複點擊..." : "儲存銷售";
+    }
+
+    function getRecentSaleGuard() {
+      try {
+        return JSON.parse(localStorage.getItem("recent_sale_guard") || "null");
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function setRecentSaleGuard(fingerprint, orderNo) {
+      const payload = { fingerprint, orderNo, at: Date.now() };
+      localStorage.setItem("recent_sale_guard", JSON.stringify(payload));
+      saleSubmitState.lastFingerprint = fingerprint;
+      saleSubmitState.lastSubmittedAt = payload.at;
     }
 
     function saleProductOptionsHtml(selectedId = "") {
@@ -756,6 +826,80 @@
       return [...map.values()].filter(x => x.productId && x.qty > 0);
     }
 
+
+    async function syncSalesCostsForInventoryItem(inventoryItem, override = {}) {
+      if (!inventoryItem?.id) return;
+
+      const targetName = override.name ?? inventoryItem.name ?? "";
+      const targetCategory = override.category ?? inventoryItem.category ?? "";
+      const avgCost = Number(override.cost_twd ?? inventoryItem.cost_twd ?? 0);
+
+      const matchedSales = state.sales.filter(row => {
+        const sameInventoryId = String(row.inventory_id || "") === String(inventoryItem.id);
+        const sameName = normalizeText(row.product_name) === normalizeText(targetName);
+        const sameCategory = !targetCategory || normalizeText(row.product_category || "") === normalizeText(targetCategory);
+        return sameInventoryId || (sameName && sameCategory);
+      });
+
+      if (!matchedSales.length) return 0;
+
+      let updatedCount = 0;
+      for (const row of matchedSales) {
+        const payload = {
+          cost_twd: Number((avgCost * Number(row.qty || 0)).toFixed(2)),
+          product_name: targetName
+        };
+
+        if (row.product_category !== undefined || targetCategory) {
+          payload.product_category = targetCategory;
+        }
+
+        const { error } = await supabaseClient
+          .from("sales")
+          .update(payload)
+          .eq("id", row.id);
+
+        if (error) throw error;
+        updatedCount += 1;
+      }
+      return updatedCount;
+    }
+
+    async function syncAllHistoricalSalesCosts() {
+      if (!state.inventory.length) {
+        alert("目前沒有庫存資料，無法重算。");
+        return;
+      }
+
+      const ok = confirm("這會用目前每個商品的最新平均成本，覆蓋全部舊銷售紀錄的成本與毛利基礎。確定要繼續嗎？");
+      if (!ok) return;
+
+      const btn = document.getElementById("syncAllSalesCostsBtn");
+      const originalText = btn ? btn.textContent : "";
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "重算中...";
+      }
+
+      try {
+        let updatedRows = 0;
+        for (const item of state.inventory) {
+          updatedRows += await syncSalesCostsForInventoryItem(item);
+        }
+
+        await loadAllData();
+        alert(`已完成重算，總共覆蓋 ${updatedRows} 筆銷售成本。`);
+      } catch (err) {
+        console.error(err);
+        alert(`重算失敗：${err.message || err}`);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = originalText;
+        }
+      }
+    }
+
     function renderDashboard() {
       const revenue = state.sales.reduce((sum, x) => sum + Number(x.total || 0), 0);
       const cost = state.sales.reduce((sum, x) => sum + Number(x.cost_twd || 0), 0);
@@ -778,14 +922,20 @@
         });
 
       const totalValue = rows.reduce((sum, row) => {
-        return sum + (Number(row.stock || 0) * Number(row.cost_twd || 0));
+        return sum + (Number(row.stock || 0) * getDisplayedAvgCost(row));
       }, 0);
 
       document.getElementById("inventoryTotalValue").innerText =
         "庫存總值：NT$ " + totalValue.toLocaleString("zh-TW");
 
       document.getElementById("inventoryBody").innerHTML =
-        rows.map(row => `
+        rows.map(row => {
+          const displayAvgCost = getDisplayedAvgCost(row);
+          const aggregate = getPurchaseAggregateForProduct(row.name, row.category);
+          const avgCostTitle = aggregate.totalQty > 0
+            ? `依進貨歷史計算：總成本 NT$ ${Number(aggregate.totalCost || 0).toLocaleString("zh-TW", { maximumFractionDigits: 2 })} ÷ 總數量 ${Number(aggregate.totalQty || 0).toLocaleString("zh-TW")}`
+            : "目前沒有對應進貨歷史，先顯示現有平均成本";
+          return `
           <tr>
             <td>${fmtDate(row.date)}</td>
             <td>${row.name ?? ""}</td>
@@ -794,15 +944,16 @@
             <td><span class="pill">${row.currency ?? "TWD"}</span></td>
             <td>${Number(row.unit_cost || 0).toLocaleString("zh-TW")}</td>
             <td>${Number(row.exchange_rate || 0).toLocaleString("zh-TW")}</td>
-            <td>${nt(row.cost_twd)}</td>
-            <td>${nt(Number(row.stock || 0) * Number(row.cost_twd || 0))}</td>
+            <td title="${avgCostTitle}">${nt(displayAvgCost)}</td>
+            <td>${nt(Number(row.stock || 0) * displayAvgCost)}</td>
             <td>${row.note ?? ""}</td>
             <td>
               <button class="btn-secondary btn-small" onclick="editInventory('${row.id}')">編輯</button>
               <button class="btn-danger btn-small" onclick="deleteInventory('${row.id}')">刪除</button>
             </td>
           </tr>
-        `).join("") || `<tr><td colspan="11">目前沒有庫存</td></tr>`;
+        `;
+        }).join("") || `<tr><td colspan="11">目前沒有庫存</td></tr>`;
 
       document.querySelectorAll(".sale-item-product").forEach(select => {
         const current = select.value;
@@ -1032,7 +1183,13 @@
         const payload = { date, name, category, stock, currency, unit_cost, exchange_rate, cost_twd, note };
         const result = await supabaseClient.from("inventory").update(payload).eq("id", editId).select();
         if (result.error) { setMsg("inventoryMsg", result.error.message); return; }
-        setMsg("inventoryMsg", "更新成功", "success");
+        try {
+          await syncSalesCostsForInventoryItem({ id: editId, name, category, cost_twd }, { name, category, cost_twd });
+        } catch (syncErr) {
+          setMsg("inventoryMsg", `庫存已更新，但同步銷售成本失敗：${syncErr.message || syncErr}`);
+          return;
+        }
+        setMsg("inventoryMsg", "更新成功，相關銷售成本已同步最新平均成本", "success");
         resetInventoryForm(); closeModal("inventoryModal"); await loadAllData(); return;
       }
 
@@ -1069,7 +1226,13 @@
         }).eq("id", existing.id).select();
 
         if (result.error) { setMsg("inventoryMsg", result.error.message); return; }
-        setMsg("inventoryMsg", `已自動合併相同商品，最新平均成本：${nt(newAvgCost)}`, "success");
+        try {
+          await syncSalesCostsForInventoryItem(existing, { name, category, cost_twd: Number(newAvgCost.toFixed(2)) });
+        } catch (syncErr) {
+          setMsg("inventoryMsg", `進貨已合併，但同步銷售成本失敗：${syncErr.message || syncErr}`);
+          return;
+        }
+        setMsg("inventoryMsg", `已自動合併相同商品，最新平均成本：${nt(newAvgCost)}，相關銷售成本已同步更新`, "success");
       } else {
         const payload = { date, name, category, stock, currency, unit_cost, exchange_rate, cost_twd, note };
         const result = await supabaseClient.from("inventory").insert([payload]).select();
@@ -1173,10 +1336,21 @@
             .eq("id", inventoryItem.id);
 
           if (invUpdateErr) { setMsg("inventoryMsg", invUpdateErr.message); return; }
+
+          try {
+            await syncSalesCostsForInventoryItem(inventoryItem, {
+              name: inventoryItem.name,
+              category: inventoryItem.category,
+              cost_twd: Number(avgPurchaseCost.toFixed(2))
+            });
+          } catch (syncErr) {
+            setMsg("inventoryMsg", `庫存已重算，但同步銷售成本失敗：${syncErr.message || syncErr}`);
+            return;
+          }
         }
       }
 
-      setMsg("inventoryMsg", "進貨歷史已刪除，整合後庫存已依剩餘進貨與已售數量重算", "success");
+      setMsg("inventoryMsg", "進貨歷史已刪除，整合後庫存與相關銷售成本已同步重算", "success");
       await loadAllData();
     }
 
@@ -1199,6 +1373,11 @@
     }
 
     async function addSale() {
+      if (saleSubmitState.inFlight) {
+        setMsg("salesMsg", "銷售資料正在送出，請不要重複點擊");
+        return;
+      }
+
       setMsg("salesMsg", "");
       const editId = document.getElementById("saleEditId").value;
       const date = document.getElementById("saleDate").value || null;
@@ -1213,16 +1392,116 @@
       if (!date || items.length === 0) { setMsg("salesMsg", "請完整填寫銷售資料"); return; }
       if (payment_method === "匯款" && payment_code && !/^\d{5}$/.test(payment_code)) { setMsg("salesMsg", "匯款後五碼需為5位數"); return; }
 
-      // 編輯整張訂單
-      if (editId) {
-        const oldRows = state.sales.filter(x => (x.order_no || x.id) === editId);
-        if (!oldRows.length) { setMsg("salesMsg", "找不到原本訂單"); return; }
+      const saleFingerprint = buildSaleFingerprint({
+        date,
+        payment_method,
+        payment_code,
+        delivery_method,
+        shipment_status,
+        payment_status,
+        note,
+        items
+      });
 
-        const restoredMap = new Map();
-        for (const row of oldRows) {
-          const key = String(row.inventory_id);
-          restoredMap.set(key, (restoredMap.get(key) || 0) + Number(row.qty || 0));
+      if (!editId) {
+        const recentGuard = getRecentSaleGuard();
+        if (recentGuard && recentGuard.fingerprint === saleFingerprint && Date.now() - Number(recentGuard.at || 0) < 15000) {
+          setMsg("salesMsg", `偵測到 15 秒內重複送出相同訂單，系統已阻擋。若你真的要再新增一次，請等 15 秒後再送出。`, "error");
+          return;
         }
+      }
+
+      saleSubmitState.inFlight = true;
+      setSaleSubmitLoading(true);
+
+      try {
+        // 編輯整張訂單
+        if (editId) {
+          const oldRows = state.sales.filter(x => (x.order_no || x.id) === editId);
+          if (!oldRows.length) { setMsg("salesMsg", "找不到原本訂單"); return; }
+
+          const restoredMap = new Map();
+          for (const row of oldRows) {
+            const key = String(row.inventory_id);
+            restoredMap.set(key, (restoredMap.get(key) || 0) + Number(row.qty || 0));
+          }
+
+          for (const line of items) {
+            if (!line.productId || line.qty <= 0 || line.price < 0) {
+              setMsg("salesMsg", "請確認每一項商品都有商品、數量與單價");
+              return;
+            }
+            const item = state.inventory.find(x => String(x.id) === String(line.productId));
+            if (!item) { setMsg("salesMsg", "有商品不存在"); return; }
+
+            const availableStock = Number(item.stock || 0) + Number(restoredMap.get(String(line.productId)) || 0);
+            if (availableStock < Number(line.qty || 0)) {
+              setMsg("salesMsg", `${item.name} 庫存不足，目前可用 ${availableStock}`);
+              return;
+            }
+          }
+
+          for (const row of oldRows) {
+            const item = state.inventory.find(x => String(x.id) === String(row.inventory_id));
+            if (item) {
+              const restoredStock = Number(item.stock || 0) + Number(row.qty || 0);
+              const { error: restoreErr } = await supabaseClient
+                .from("inventory")
+                .update({ stock: restoredStock })
+                .eq("id", item.id);
+              if (restoreErr) { setMsg("salesMsg", restoreErr.message); return; }
+              item.stock = restoredStock;
+            }
+          }
+
+          for (const line of items) {
+            const item = state.inventory.find(x => String(x.id) === String(line.productId));
+            const finalStock = Number(item.stock || 0) - Number(line.qty || 0);
+            const { error: deductErr } = await supabaseClient
+              .from("inventory")
+              .update({ stock: finalStock })
+              .eq("id", item.id);
+            if (deductErr) { setMsg("salesMsg", deductErr.message); return; }
+            item.stock = finalStock;
+          }
+
+          const { error: deleteOldErr } = await supabaseClient
+            .from("sales")
+            .delete()
+            .eq("order_no", editId);
+          if (deleteOldErr) { setMsg("salesMsg", deleteOldErr.message); return; }
+
+          const inserts = items.map(line => {
+            const item = state.inventory.find(x => String(x.id) === String(line.productId));
+            return {
+              order_no: editId,
+              inventory_id: item.id,
+              product_name: item.name,
+              qty: line.qty,
+              price: line.price,
+              total: line.qty * line.price,
+              cost_twd: Number(item.cost_twd || 0) * line.qty,
+              date,
+              payment_method,
+              payment_code,
+              delivery_method,
+              shipment_status,
+              payment_status,
+              note
+            };
+          });
+
+          const { error: insertErr } = await supabaseClient.from("sales").insert(inserts).select();
+          if (insertErr) { setMsg("salesMsg", insertErr.message); return; }
+
+          setMsg("salesMsg", "訂單更新成功", "success");
+          resetSaleForm(); closeModal("salesModal"); await loadAllData();
+          return;
+        }
+
+        const orderNo = createOrderNo();
+        const updates = [];
+        const inserts = [];
 
         for (const line of items) {
           if (!line.productId || line.qty <= 0 || line.price < 0) {
@@ -1231,50 +1510,13 @@
           }
           const item = state.inventory.find(x => String(x.id) === String(line.productId));
           if (!item) { setMsg("salesMsg", "有商品不存在"); return; }
-
-          const availableStock = Number(item.stock || 0) + Number(restoredMap.get(String(line.productId)) || 0);
-          if (availableStock < Number(line.qty || 0)) {
-            setMsg("salesMsg", `${item.name} 庫存不足，目前可用 ${availableStock}`);
+          if (Number(item.stock || 0) < line.qty) {
+            setMsg("salesMsg", `${item.name} 庫存不足，目前可用 ${item.stock}`);
             return;
           }
-        }
-
-        // 先把舊訂單庫存補回
-        for (const row of oldRows) {
-          const item = state.inventory.find(x => String(x.id) === String(row.inventory_id));
-          if (item) {
-            const restoredStock = Number(item.stock || 0) + Number(row.qty || 0);
-            const { error: restoreErr } = await supabaseClient
-              .from("inventory")
-              .update({ stock: restoredStock })
-              .eq("id", item.id);
-            if (restoreErr) { setMsg("salesMsg", restoreErr.message); return; }
-            item.stock = restoredStock;
-          }
-        }
-
-        // 再依照新訂單扣庫存
-        for (const line of items) {
-          const item = state.inventory.find(x => String(x.id) === String(line.productId));
-          const finalStock = Number(item.stock || 0) - Number(line.qty || 0);
-          const { error: deductErr } = await supabaseClient
-            .from("inventory")
-            .update({ stock: finalStock })
-            .eq("id", item.id);
-          if (deductErr) { setMsg("salesMsg", deductErr.message); return; }
-          item.stock = finalStock;
-        }
-
-        const { error: deleteOldErr } = await supabaseClient
-          .from("sales")
-          .delete()
-          .eq("order_no", editId);
-        if (deleteOldErr) { setMsg("salesMsg", deleteOldErr.message); return; }
-
-        const inserts = items.map(line => {
-          const item = state.inventory.find(x => String(x.id) === String(line.productId));
-          return {
-            order_no: editId,
+          updates.push({ id: item.id, stock: Number(item.stock) - line.qty });
+          inserts.push({
+            order_no: orderNo,
             inventory_id: item.id,
             product_name: item.name,
             qty: line.qty,
@@ -1288,62 +1530,24 @@
             shipment_status,
             payment_status,
             note
-          };
-        });
+          });
+        }
+
+        for (const u of updates) {
+          const { error } = await supabaseClient.from("inventory").update({ stock: u.stock }).eq("id", u.id);
+          if (error) { setMsg("salesMsg", error.message); return; }
+        }
 
         const { error: insertErr } = await supabaseClient.from("sales").insert(inserts).select();
         if (insertErr) { setMsg("salesMsg", insertErr.message); return; }
 
-        setMsg("salesMsg", "訂單更新成功", "success");
+        setRecentSaleGuard(saleFingerprint, orderNo);
+        setMsg("salesMsg", "銷售新增成功", "success");
         resetSaleForm(); closeModal("salesModal"); await loadAllData();
-        return;
+      } finally {
+        saleSubmitState.inFlight = false;
+        setSaleSubmitLoading(false);
       }
-
-      // 新增模式
-      const orderNo = createOrderNo();
-      const updates = [];
-      const inserts = [];
-
-      for (const line of items) {
-        if (!line.productId || line.qty <= 0 || line.price < 0) {
-          setMsg("salesMsg", "請確認每一項商品都有商品、數量與單價");
-          return;
-        }
-        const item = state.inventory.find(x => String(x.id) === String(line.productId));
-        if (!item) { setMsg("salesMsg", "有商品不存在"); return; }
-        if (Number(item.stock || 0) < line.qty) {
-          setMsg("salesMsg", `${item.name} 庫存不足，目前可用 ${item.stock}`);
-          return;
-        }
-        updates.push({ id: item.id, stock: Number(item.stock) - line.qty });
-        inserts.push({
-          order_no: orderNo,
-          inventory_id: item.id,
-          product_name: item.name,
-          qty: line.qty,
-          price: line.price,
-          total: line.qty * line.price,
-          cost_twd: Number(item.cost_twd || 0) * line.qty,
-          date,
-          payment_method,
-          payment_code,
-          delivery_method,
-          shipment_status,
-          payment_status,
-          note
-        });
-      }
-
-      for (const u of updates) {
-        const { error } = await supabaseClient.from("inventory").update({ stock: u.stock }).eq("id", u.id);
-        if (error) { setMsg("salesMsg", error.message); return; }
-      }
-
-      const { error: insertErr } = await supabaseClient.from("sales").insert(inserts).select();
-      if (insertErr) { setMsg("salesMsg", insertErr.message); return; }
-
-      setMsg("salesMsg", "銷售新增成功", "success");
-      resetSaleForm(); closeModal("salesModal"); await loadAllData();
     }
 
     async function editSale(id) {
@@ -1377,10 +1581,34 @@
 
     async function deleteSale(id) {
       const row = state.sales.find(x => x.id === id); if (!row) return;
-      if (!confirm(`確定刪除銷售「${row.product_name}」嗎？`)) return;
-      const item = state.inventory.find(x => x.id === row.inventory_id);
-      if (item) await supabaseClient.from("inventory").update({ stock: Number(item.stock) + Number(row.qty || 0) }).eq("id", item.id);
-      const { error } = await supabaseClient.from("sales").delete().eq("id", id);
+      const orderKey = row.order_no || row.id;
+      const orderRows = state.sales.filter(x => (x.order_no || x.id) === orderKey);
+      const isGroupedOrder = !!row.order_no && orderRows.length > 1;
+      const confirmText = isGroupedOrder
+        ? `確定刪除整張訂單「${orderKey}」嗎？這會一次回補 ${orderRows.length} 筆商品庫存。`
+        : `確定刪除銷售「${row.product_name}」嗎？`;
+      if (!confirm(confirmText)) return;
+
+      const restoreMap = new Map();
+      for (const saleRow of orderRows) {
+        const key = String(saleRow.inventory_id || "");
+        restoreMap.set(key, (restoreMap.get(key) || 0) + Number(saleRow.qty || 0));
+      }
+
+      for (const [inventoryId, qty] of restoreMap.entries()) {
+        const item = state.inventory.find(x => String(x.id) === String(inventoryId));
+        if (!item) continue;
+        const restoredStock = Number(item.stock || 0) + Number(qty || 0);
+        const { error: restoreErr } = await supabaseClient
+          .from("inventory")
+          .update({ stock: restoredStock })
+          .eq("id", item.id);
+        if (restoreErr) { setMsg("salesMsg", restoreErr.message); return; }
+      }
+
+      let deleteQuery = supabaseClient.from("sales").delete();
+      deleteQuery = row.order_no ? deleteQuery.eq("order_no", row.order_no) : deleteQuery.eq("id", id);
+      const { error } = await deleteQuery;
       if (error) { setMsg("salesMsg", error.message); return; }
       await loadAllData();
     }
@@ -1461,6 +1689,7 @@
     document.getElementById("addSaleBtn").addEventListener("click", addSale);
     document.getElementById("addExpenseBtn").addEventListener("click", addExpense);
     document.getElementById("refreshBtn").addEventListener("click", loadAllData);
+    document.getElementById("syncAllSalesCostsBtn")?.addEventListener("click", syncAllHistoricalSalesCosts);
     document.getElementById("exportInventoryBtn").addEventListener("click", exportInventoryExcel);
     document.getElementById("exportPurchaseBtn").addEventListener("click", exportPurchaseExcel);
     document.getElementById("exportSalesBtn").addEventListener("click", exportSalesExcel);
