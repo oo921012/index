@@ -1058,8 +1058,14 @@
           return [row.name, row.category, row.note].some(v => (v || "").toLowerCase().includes(keyword));
         });
 
+      let lastNoteKey = "";
       document.getElementById("purchaseHistoryBody").innerHTML =
-        rows.map(row => `
+        rows.map(row => {
+          const currentNoteKey = `${normalizeText(row.name)}__${normalizeText(row.category)}__${(row.note || "").trim()}`;
+          const displayNote = currentNoteKey === lastNoteKey ? "" : (row.note ?? "");
+          lastNoteKey = currentNoteKey;
+
+          return `
           <tr>
             <td>${fmtDate(row.date)}</td>
             <td>${row.name ?? ""}</td>
@@ -1069,12 +1075,12 @@
             <td>${Number(row.exchange_rate || 0).toLocaleString("zh-TW")}</td>
             <td>${row.stock ?? 0}</td>
             <td>${nt(Number(row.stock || 0) * Number(row.cost_twd || 0))}</td>
-            <td>${row.note ?? ""}</td>
+            <td>${displayNote}</td>
             <td>
               <button class="btn-danger btn-small" onclick="deletePurchaseHistory('${row.id}')">刪除</button>
             </td>
           </tr>
-        `).join("") || `<tr><td colspan="10">目前沒有進貨歷史</td></tr>`;
+        `}).join("") || `<tr><td colspan="10">目前沒有進貨歷史</td></tr>`;
     }
 
     function renderSales() {
@@ -1085,17 +1091,20 @@
       });
 
       const rows = [...filteredRows].sort((a, b) => {
+        const ad = a.date || "";
+        const bd = b.date || "";
         const ao = a.order_no || `single-${a.id}`;
         const bo = b.order_no || `single-${b.id}`;
         const aInfo = extractSizeInfo(a.product_name || "");
         const bInfo = extractSizeInfo(b.product_name || "");
 
         return (
-          ao.localeCompare(bo) ||
+          bd.localeCompare(ad) ||
+          bo.localeCompare(ao) ||
           aInfo.baseName.localeCompare(bInfo.baseName) ||
           aInfo.sizeOrder - bInfo.sizeOrder ||
           (a.product_name || "").localeCompare(b.product_name || "") ||
-          (a.date || "").localeCompare(b.date || "")
+          String(b.id || "").localeCompare(String(a.id || ""))
         );
       });
 
