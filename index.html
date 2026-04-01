@@ -572,26 +572,69 @@
 
     function extractSizeInfo(name) {
       const raw = (name || "").trim();
-      const normalized = raw.toUpperCase().replace(/\s+/g, "");
-      const patterns = [
-        [/([_-]?3XL)$/, "3XL", 8],
-        [/([_-]?2XL)$/, "2XL", 7],
-        [/([_-]?XXL)$/, "XXL", 7],
-        [/([_-]?XL)$/, "XL", 6],
-        [/([_-]?L)$/, "L", 5],
-        [/([_-]?M)$/, "M", 4],
-        [/([_-]?S)$/, "S", 3],
-        [/([_-]?XS)$/, "XS", 2],
-        [/([_-]?XXS)$/, "XXS", 1],
-      ];
+      const upper = raw.toUpperCase().replace(/　/g, " ");
+      const aliasMap = {
+        XXS: { label: "XXS", order: 0 },
+        XS: { label: "XS", order: 1 },
+        S: { label: "S", order: 2 },
+        M: { label: "M", order: 3 },
+        L: { label: "L", order: 4 },
+        XL: { label: "XL", order: 5 },
+        XXL: { label: "2XL", order: 6 },
+        '2XL': { label: "2XL", order: 6 },
+        XXXL: { label: "3XL", order: 7 },
+        '3XL': { label: "3XL", order: 7 }
+      };
 
-      for (const [pattern, label, order] of patterns) {
-        if (pattern.test(normalized)) {
-          const base = raw.replace(/[\s_-]*(XXS|XS|S|M|L|XL|XXL|2XL|3XL)$/i, "").trim();
-          return { baseName: normalizeText(base), sizeLabel: label, sizeOrder: order };
+      // 尺寸常直接黏在中文商品名尾巴，例如：短袖2XL、帽T M、TEE-XL
+      // 這裡只抓「字尾尺寸」，避免把商品正文中的字母誤判成尺寸。
+      const sizeMatch = upper.match(/(?:[\s_\-\/\(\[])?(XXS|XS|S|M|L|XL|XXL|2XL|XXXL|3XL)\s*[\)\]]*$/);
+      if (sizeMatch) {
+        const matched = sizeMatch[1];
+        const mapped = aliasMap[matched] || { label: matched, order: 999 };
+        const base = raw
+          .replace(/[\s_\-\/\(\[]*(XXS|XS|S|M|L|XL|XXL|2XL|XXXL|3XL)\s*[\)\]]*$/i, "")
+          .replace(/\s*SIZE\s*$/i, "")
+          .trim();
+        return { baseName: normalizeText(base), sizeLabel: mapped.label, sizeOrder: mapped.order };
+      }
+
+      return { baseName: normalizeText(raw), sizeLabel: "", sizeOrder: 999 };
+    }
+
+    function getProductBaseGroupKey(name, category = "") {
+      const info = extractSizeInfo(name || "");
+      return `${info.baseName}::${normalizeText(category || "")}`;
+    }
+
+    function getInventorySalesStats() {
+      const byInventoryId = new Map();
+      const byProductGroup = new Map();
+
+      for (const sale of state.sales || []) {
+        const inventoryIdKey = String(sale.inventory_id || "");
+        const productKey = `${normalizeText(sale.product_name)}::${normalizeText(sale.product_category || "")}`;
+        const qty = Number(sale.qty || 0);
+        const total = Number(sale.total || 0);
+
+        if (inventoryIdKey) {
+          const current = byInventoryId.get(inventoryIdKey) || { qty: 0, total: 0, count: 0 };
+          current.qty += qty;
+          current.total += total;
+          current.count += 1;
+          byInventoryId.set(inventoryIdKey, current);
+        }
+
+        if (productKey !== "::") {
+          const currentGroup = byProductGroup.get(productKey) || { qty: 0, total: 0, count: 0 };
+          currentGroup.qty += qty;
+          currentGroup.total += total;
+          currentGroup.count += 1;
+          byProductGroup.set(productKey, currentGroup);
         }
       }
-      return { baseName: normalizeText(raw), sizeLabel: "", sizeOrder: 999 };
+
+      return { byInventoryId, byProductGroup };
     }
 
     function sortInventoryRows(rows) {
@@ -760,7 +803,44 @@
     function saleProductOptionsHtml(selectedId = "") {
       const rows = state.inventory.filter(x => Number(x.stock) > 0 || String(x.id) === String(selectedId));
       if (!rows.length) return `<option value="">目前沒有可售商品</option>`;
-      return rows.map(row => `<option value="${row.id}" ${String(selectedId)===String(row.id) ? "selected" : ""}>${row.name}（庫存：${row.stock}）</option>`).join("");
+
+      const salesStats = getInventorySalesStats();
+      const baseGroupStats = new Map();
+
+      for (const row of rows) {
+        const groupKey = getProductBaseGroupKey(row.name, row.category);
+        const current = baseGroupStats.get(groupKey) || { qty: 0, count: 0 };
+        const inventoryStats = salesStats.byInventoryId.get(String(row.id)) || { qty: 0, count: 0 };
+        const exactStats = salesStats.byProductGroup.get(`${normalizeText(row.name)}::${normalizeText(row.category || "")}`) || { qty: 0, count: 0 };
+        current.qty += Number(inventoryStats.qty || exactStats.qty || 0);
+        current.count += Number(inventoryStats.count || exactStats.count || 0);
+        baseGroupStats.set(groupKey, current);
+      }
+
+      const sortedRows = [...rows].sort((a, b) => {
+        const aInfo = extractSizeInfo(a.name);
+        const bInfo = extractSizeInfo(b.name);
+        const aBaseStats = baseGroupStats.get(getProductBaseGroupKey(a.name, a.category)) || { qty: 0, count: 0 };
+        const bBaseStats = baseGroupStats.get(getProductBaseGroupKey(b.name, b.category)) || { qty: 0, count: 0 };
+
+        if (bBaseStats.qty !== aBaseStats.qty) return bBaseStats.qty - aBaseStats.qty;
+        if (bBaseStats.count !== aBaseStats.count) return bBaseStats.count - aBaseStats.count;
+
+        return (
+          aInfo.baseName.localeCompare(bInfo.baseName) ||
+          normalizeText(a.category).localeCompare(normalizeText(b.category)) ||
+          aInfo.sizeOrder - bInfo.sizeOrder ||
+          normalizeText(a.name).localeCompare(normalizeText(b.name))
+        );
+      });
+
+      return sortedRows.map(row => {
+        const inventoryStats = salesStats.byInventoryId.get(String(row.id)) || { qty: 0, count: 0 };
+        const exactStats = salesStats.byProductGroup.get(`${normalizeText(row.name)}::${normalizeText(row.category || "")}`) || { qty: 0, count: 0 };
+        const soldQty = Number(inventoryStats.qty || exactStats.qty || 0);
+        const soldText = soldQty > 0 ? `｜已售：${soldQty}` : "";
+        return `<option value="${row.id}" ${String(selectedId)===String(row.id) ? "selected" : ""}>${row.name}（庫存：${row.stock}${soldText}）</option>`;
+      }).join("");
     }
 
     function addSaleItemRow(prefill = {}) {
@@ -836,9 +916,15 @@
 
       const matchedSales = state.sales.filter(row => {
         const sameInventoryId = String(row.inventory_id || "") === String(inventoryItem.id);
+        if (sameInventoryId) return true;
+
         const sameName = normalizeText(row.product_name) === normalizeText(targetName);
-        const sameCategory = !targetCategory || normalizeText(row.product_category || "") === normalizeText(targetCategory);
-        return sameInventoryId || (sameName && sameCategory);
+        if (!sameName) return false;
+
+        const inventoryRef = state.inventory.find(inv => String(inv.id || "") === String(row.inventory_id || ""));
+        if (!inventoryRef) return true;
+
+        return normalizeText(inventoryRef.category || "") === normalizeText(targetCategory || "");
       });
 
       if (!matchedSales.length) return 0;
@@ -849,10 +935,6 @@
           cost_twd: Number((avgCost * Number(row.qty || 0)).toFixed(2)),
           product_name: targetName
         };
-
-        if (row.product_category !== undefined || targetCategory) {
-          payload.product_category = targetCategory;
-        }
 
         const { error } = await supabaseClient
           .from("sales")
@@ -884,7 +966,12 @@
       try {
         let updatedRows = 0;
         for (const item of state.inventory) {
-          updatedRows += await syncSalesCostsForInventoryItem(item);
+          const displayedAvgCost = Number(getDisplayedAvgCost(item) || 0);
+          updatedRows += await syncSalesCostsForInventoryItem(item, {
+            name: item.name,
+            category: item.category,
+            cost_twd: displayedAvgCost
+          });
         }
 
         await loadAllData();
