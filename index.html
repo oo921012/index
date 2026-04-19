@@ -429,7 +429,7 @@
     </div>
   </div>
 
-  <div id="expensesModal"  <div id="expensesModal" class="modal-backdrop">
+ <div id="expensesModal" class="modal-backdrop">
     <div class="modal-card">
       <div class="modal-header">
         <h3 class="modal-title">新增 / 編輯支出</h3>
@@ -1179,7 +1179,7 @@
         supabaseClient.from("inventory").select("*").order("date", { ascending: false, nullsFirst: false }),
         supabaseClient.from("sales").select("*").order("date", { ascending: false, nullsFirst: false }),
         supabaseClient.from("expenses").select("*").order("date", { ascending: false, nullsFirst: false }),
-        supabaseClient.from("purchase").select("*").order("date", { ascending: false, nullsFirst: false })
+        supabaseClient.from("purchases").select("*").order("date", { ascending: false, nullsFirst: false })
       ]);
 
       if (invErr) setMsg("inventoryMsg", invErr.message, "error");
@@ -1290,7 +1290,7 @@
       }
 
       // 先寫入進貨歷史
-      const historyInsert = await supabaseClient.from("purchase").insert([{
+      const historyInsert = await supabaseClient.from("purchases").insert([{
         date, name, category, stock, currency, unit_cost, exchange_rate, cost_twd, note
       }]).select();
       if (historyInsert.error) { setMsg("inventoryMsg", historyInsert.error.message); return; }
